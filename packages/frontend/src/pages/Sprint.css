@@ -1,0 +1,73 @@
+/* Sprint Board Styles */
+
+/* Column styling */
+.sprint-column {
+  transition: background-color 0.2s ease;
+}
+
+.sprint-column:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* Task card styling */
+.task-card {
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.task-card:active {
+  cursor: grabbing;
+}
+
+.task-card.dragging {
+  opacity: 0.5;
+}
+
+/* Drag overlay */
+.drag-overlay {
+  cursor: grabbing;
+}
+
+/* Empty column state */
+.column-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+}
+
+/* Task animations */
+@keyframes taskSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-card-enter {
+  animation: taskSlideIn 0.3s ease;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .sprint-board-columns {
+    flex-direction: column;
+  }
+
+  .sprint-column {
+    min-width: 100%;
+  }
+}

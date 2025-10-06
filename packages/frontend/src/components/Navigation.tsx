@@ -1,12 +1,25 @@
-import { AppShell, Burger, Button, Group, NavLink, Text } from '@mantine/core';
+import {
+  AppShell,
+  Burger,
+  Button,
+  Group,
+  NavLink,
+  Text,
+  ActionIcon,
+  useMantineColorScheme,
+  useComputedColorScheme,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { IconSun, IconMoon } from '@tabler/icons-react';
 
 export function Navigation() {
   const [opened, { toggle }] = useDisclosure();
   const { user, signOut } = useAuthenticator((context) => [context.user]);
   const navigate = useNavigate();
+  const { setColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme('dark');
 
   const displayName =
     user?.signInDetails?.loginId ?? user?.username ?? user?.userId ?? 'User';
@@ -17,6 +30,10 @@ export function Navigation() {
     } finally {
       navigate('/login');
     }
+  };
+
+  const toggleColorScheme = () => {
+    setColorScheme(computedColorScheme === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -30,6 +47,20 @@ export function Navigation() {
           <Burger opened={opened} onClick={toggle} hiddenFrom='sm' size='sm' />
           <Text fw={600}>No Excel PM</Text>
           <Group gap='xs'>
+            <ActionIcon
+              variant='default'
+              size='lg'
+              onClick={toggleColorScheme}
+              title={`Switch to ${
+                computedColorScheme === 'dark' ? 'light' : 'dark'
+              } mode`}
+            >
+              {computedColorScheme === 'dark' ? (
+                <IconSun size={18} stroke={1.5} />
+              ) : (
+                <IconMoon size={18} stroke={1.5} />
+              )}
+            </ActionIcon>
             <Text size='sm' c='dimmed'>
               Signed in as {displayName}
             </Text>

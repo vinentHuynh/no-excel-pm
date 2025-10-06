@@ -1,5 +1,10 @@
 node_modules
 .env
+.env.local
 dist
 npm-debug.log
 .DS_Store
+
+# CDK outputs (contains sensitive AWS resource IDs)
+packages/backend/outputs.json
+packages/backend/cdk.out/

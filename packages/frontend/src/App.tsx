@@ -61,7 +61,20 @@ function ProtectedLayout() {
 
 function App() {
   return (
-    <MantineProvider>
+    <MantineProvider
+      theme={{
+        fontFamily:
+          "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+        headings: {
+          fontFamily:
+            "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif",
+          fontWeight: '600',
+        },
+        primaryColor: 'indigo',
+        defaultRadius: 'md',
+      }}
+      defaultColorScheme='dark'
+    >
       <Authenticator.Provider>
         <RouterProvider router={router} />
       </Authenticator.Provider>
