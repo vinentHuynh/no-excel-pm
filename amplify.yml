@@ -3,6 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
+        - npm i -g pnpm
         - pnpm install
     # IMPORTANT - Please verify your build commands
     build:
