@@ -1,9 +1,23 @@
-import { AppShell, Burger, Group, NavLink } from '@mantine/core';
+import { AppShell, Burger, Button, Group, NavLink, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Link, Outlet } from 'react-router-dom';
+import { useAuthenticator } from '@aws-amplify/ui-react';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 
 export function Navigation() {
   const [opened, { toggle }] = useDisclosure();
+  const { user, signOut } = useAuthenticator((context) => [context.user]);
+  const navigate = useNavigate();
+
+  const displayName =
+    user?.signInDetails?.loginId ?? user?.username ?? user?.userId ?? 'User';
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } finally {
+      navigate('/login');
+    }
+  };
 
   return (
     <AppShell
@@ -12,9 +26,17 @@ export function Navigation() {
       padding='md'
     >
       <AppShell.Header>
-        <Group h='100%' px='md'>
+        <Group h='100%' px='md' justify='space-between'>
           <Burger opened={opened} onClick={toggle} hiddenFrom='sm' size='sm' />
-          <div>No Excel PM</div>
+          <Text fw={600}>No Excel PM</Text>
+          <Group gap='xs'>
+            <Text size='sm' c='dimmed'>
+              Signed in as {displayName}
+            </Text>
+            <Button size='xs' variant='light' onClick={handleSignOut}>
+              Sign out
+            </Button>
+          </Group>
         </Group>
       </AppShell.Header>
 

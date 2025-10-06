@@ -10,10 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-amplify/ui-react": "^6.0.9",
     "@emotion/react": "^11.14.0",
     "@mantine/core": "^8.3.3",
     "@mantine/hooks": "^8.3.3",
-    "amazon-cognito-identity-js": "^6.3.15",
+    "aws-amplify": "^6.8.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3"

@@ -2,7 +2,8 @@
   "name": "no-excel-pm",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./packages/**\" dev"
+    "dev": "pnpm --parallel --filter \"./packages/**\" dev",
+    "deploy:s3": "pnpm --filter \"./packages/frontend\" build && aws s3 sync ./packages/frontend/dist s3://no-excel-pm-frontend-bucket"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

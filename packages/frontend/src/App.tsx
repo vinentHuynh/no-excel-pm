@@ -1,5 +1,10 @@
-import { MantineProvider } from '@mantine/core';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { Center, Loader, MantineProvider, Stack, Text } from '@mantine/core';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import {
+  Navigate,
+  createBrowserRouter,
+  RouterProvider,
+} from 'react-router-dom';
 import { Navigation } from './components/Navigation';
 import DashboardPage from './pages/Dashboard';
 import SprintPage from './pages/Sprint';
@@ -9,7 +14,7 @@ import LoginPage from './pages/Login';
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigation />,
+    element: <ProtectedLayout />,
     children: [
       {
         path: '/',
@@ -31,10 +36,35 @@ const router = createBrowserRouter([
   },
 ]);
 
+function ProtectedLayout() {
+  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
+
+  if (authStatus === 'configuring') {
+    return (
+      <Center h='100vh'>
+        <Stack align='center' gap='xs'>
+          <Loader />
+          <Text size='sm' c='dimmed'>
+            Loading your session…
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
+
+  if (authStatus !== 'authenticated') {
+    return <Navigate to='/login' replace />;
+  }
+
+  return <Navigation />;
+}
+
 function App() {
   return (
     <MantineProvider>
-      <RouterProvider router={router} />
+      <Authenticator.Provider>
+        <RouterProvider router={router} />
+      </Authenticator.Provider>
     </MantineProvider>
   );
 }
