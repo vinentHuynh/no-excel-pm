@@ -1,0 +1,10 @@
+{
+  "name": "no-excel-pm",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./packages/**\" dev"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}
