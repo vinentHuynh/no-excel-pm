@@ -152,10 +152,14 @@ export class ApiStack extends cdk.Stack {
     });
 
     // POST /tasks
-    tasks.addMethod('POST', new apigateway.LambdaIntegration(createTaskLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    tasks.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(createTaskLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // GET /tasks/{id}
     task.addMethod('GET', new apigateway.LambdaIntegration(getTaskLambda), {
@@ -170,16 +174,24 @@ export class ApiStack extends cdk.Stack {
     });
 
     // DELETE /tasks/{id}
-    task.addMethod('DELETE', new apigateway.LambdaIntegration(deleteTaskLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    task.addMethod(
+      'DELETE',
+      new apigateway.LambdaIntegration(deleteTaskLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // POST /tasks/{id}/comments
-    comments.addMethod('POST', new apigateway.LambdaIntegration(addCommentLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    comments.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(addCommentLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // POST /tasks/{id}/link
     link.addMethod('POST', new apigateway.LambdaIntegration(linkTaskLambda), {
@@ -188,10 +200,14 @@ export class ApiStack extends cdk.Stack {
     });
 
     // DELETE /tasks/{id}/link/{linkedTaskId}
-    unlinkResource.addMethod('DELETE', new apigateway.LambdaIntegration(unlinkTaskLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    unlinkResource.addMethod(
+      'DELETE',
+      new apigateway.LambdaIntegration(unlinkTaskLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
 
     // Output the API endpoint
     new cdk.CfnOutput(this, 'ApiEndpoint', {

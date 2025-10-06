@@ -7,17 +7,19 @@ import type {
 
 // Get API endpoint from environment variable
 // You'll need to set this after deploying the CDK stack
-const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || 'https://your-api-endpoint.execute-api.us-east-1.amazonaws.com/prod';
+const API_ENDPOINT =
+  import.meta.env.VITE_API_ENDPOINT ||
+  'https://your-api-endpoint.execute-api.us-east-1.amazonaws.com/prod';
 
 class ApiClient {
   private async getAuthHeaders(): Promise<HeadersInit> {
     try {
       const session = await fetchAuthSession();
       const token = session.tokens?.idToken?.toString();
-      
+
       return {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
+        Authorization: token ? `Bearer ${token}` : '',
       };
     } catch (error) {
       console.error('Error getting auth session:', error);
@@ -30,7 +32,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const headers = await this.getAuthHeaders();
-    
+
     const response = await fetch(`${API_ENDPOINT}${endpoint}`, {
       ...options,
       headers: {
@@ -40,8 +42,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`);
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Request failed' }));
+      throw new Error(
+        error.error || `HTTP ${response.status}: ${response.statusText}`
+      );
     }
 
     return response.json();
@@ -63,7 +69,10 @@ class ApiClient {
     });
   }
 
-  async updateTask(taskId: string, data: UpdateTaskRequest): Promise<{ task: Task }> {
+  async updateTask(
+    taskId: string,
+    data: UpdateTaskRequest
+  ): Promise<{ task: Task }> {
     return this.request<{ task: Task }>(`/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -83,17 +92,26 @@ class ApiClient {
     });
   }
 
-  async linkTask(taskId: string, linkedTaskId: string): Promise<{ task: Task }> {
+  async linkTask(
+    taskId: string,
+    linkedTaskId: string
+  ): Promise<{ task: Task }> {
     return this.request<{ task: Task }>(`/tasks/${taskId}/link`, {
       method: 'POST',
       body: JSON.stringify({ linkedTaskId }),
     });
   }
 
-  async unlinkTask(taskId: string, linkedTaskId: string): Promise<{ task: Task }> {
-    return this.request<{ task: Task }>(`/tasks/${taskId}/link/${linkedTaskId}`, {
-      method: 'DELETE',
-    });
+  async unlinkTask(
+    taskId: string,
+    linkedTaskId: string
+  ): Promise<{ task: Task }> {
+    return this.request<{ task: Task }>(
+      `/tasks/${taskId}/link/${linkedTaskId}`,
+      {
+        method: 'DELETE',
+      }
+    );
   }
 }
 

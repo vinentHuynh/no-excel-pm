@@ -11,7 +11,11 @@ import {
   deleteTask,
   addActivity,
 } from './db';
-import { Task, CreateTaskRequest, UpdateTaskRequest } from '@no-excel-pm/shared';
+import {
+  Task,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+} from '@no-excel-pm/shared';
 
 // Helper to extract user info from Cognito authorizer
 function getUserFromEvent(event: APIGatewayProxyEvent): {
@@ -22,10 +26,13 @@ function getUserFromEvent(event: APIGatewayProxyEvent): {
   const claims = event.requestContext.authorizer?.claims;
   const email = claims?.email || 'unknown@example.com';
   const userId = claims?.sub || 'unknown-user';
-  
+
   // Extract domain from email (e.g., user@companyA.com -> companyA)
   // You can customize this logic based on your domain strategy
-  const domain = claims?.['custom:domain'] || email.split('@')[1]?.split('.')[0] || 'default';
+  const domain =
+    claims?.['custom:domain'] ||
+    email.split('@')[1]?.split('.')[0] ||
+    'default';
 
   return { userId, email, domain };
 }
@@ -38,10 +45,7 @@ const corsHeaders = {
 };
 
 // Helper to create response
-function createResponse(
-  statusCode: number,
-  body: any
-): APIGatewayProxyResult {
+function createResponse(statusCode: number, body: any): APIGatewayProxyResult {
   return {
     statusCode,
     headers: corsHeaders,
@@ -57,7 +61,7 @@ export async function getTasksHandler(
   try {
     const { domain } = getUserFromEvent(event);
     const tasks = await getTasks(domain);
-    
+
     return createResponse(200, { tasks });
   } catch (error) {
     console.error('Error getting tasks:', error);
@@ -79,7 +83,7 @@ export async function getTaskHandler(
     }
 
     const task = await getTask(domain, taskId);
-    
+
     if (!task) {
       return createResponse(404, { error: 'Task not found' });
     }
@@ -105,7 +109,7 @@ export async function createTaskHandler(
     }
 
     const task = await createTask(domain, body, email);
-    
+
     return createResponse(201, { task });
   } catch (error) {
     console.error('Error creating task:', error);
@@ -128,7 +132,7 @@ export async function updateTaskHandler(
     }
 
     const task = await updateTask(domain, taskId, body, email);
-    
+
     return createResponse(200, { task });
   } catch (error) {
     console.error('Error updating task:', error);
@@ -150,7 +154,7 @@ export async function deleteTaskHandler(
     }
 
     await deleteTask(domain, taskId);
-    
+
     return createResponse(200, { success: true });
   } catch (error) {
     console.error('Error deleting task:', error);
@@ -181,7 +185,7 @@ export async function addCommentHandler(
       text: body.comment,
       author: email,
     });
-    
+
     return createResponse(200, { task });
   } catch (error) {
     console.error('Error adding comment:', error);
@@ -240,7 +244,7 @@ export async function linkTaskHandler(
 
     // Fetch updated task with new activity
     const finalTask = await getTask(domain, taskId);
-    
+
     return createResponse(200, { task: finalTask });
   } catch (error) {
     console.error('Error linking task:', error);
@@ -276,7 +280,9 @@ export async function unlinkTaskHandler(
       domain,
       taskId,
       {
-        linkedTasks: task.linkedTasks.filter((id: string) => id !== linkedTaskId),
+        linkedTasks: task.linkedTasks.filter(
+          (id: string) => id !== linkedTaskId
+        ),
       },
       email
     );
@@ -290,7 +296,7 @@ export async function unlinkTaskHandler(
 
     // Fetch updated task with new activity
     const finalTask = await getTask(domain, taskId);
-    
+
     return createResponse(200, { task: finalTask });
   } catch (error) {
     console.error('Error unlinking task:', error);

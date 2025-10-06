@@ -52,7 +52,11 @@ interface Activity extends Omit<ApiActivity, 'timestamp'> {
   timestamp: Date;
 }
 
-interface Task extends Omit<ApiTask, 'activities' | 'createdAt' | 'updatedAt' | 'domain' | 'createdBy'> {
+interface Task
+  extends Omit<
+    ApiTask,
+    'activities' | 'createdAt' | 'updatedAt' | 'domain' | 'createdBy'
+  > {
   activities: Activity[];
 }
 
@@ -320,7 +324,7 @@ export default function SprintPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Load tasks from API on mount
   useEffect(() => {
     loadTasks();
@@ -498,7 +502,7 @@ export default function SprintPage() {
 
       const newTask = convertApiTask(response.task);
       setTasks([...tasks, newTask]);
-      
+
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskStatus('backlog');
@@ -681,7 +685,9 @@ export default function SprintPage() {
     return (
       <Center h='100vh'>
         <Stack align='center'>
-          <Text c='red' size='lg'>Error: {error}</Text>
+          <Text c='red' size='lg'>
+            Error: {error}
+          </Text>
           <Button onClick={loadTasks}>Retry</Button>
         </Stack>
       </Center>

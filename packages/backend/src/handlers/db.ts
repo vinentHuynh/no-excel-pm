@@ -33,7 +33,10 @@ export async function getTasks(domain: string): Promise<Task[]> {
   return (result.Items || []).map((item) => item.data as Task);
 }
 
-export async function getTask(domain: string, taskId: string): Promise<Task | null> {
+export async function getTask(
+  domain: string,
+  taskId: string
+): Promise<Task | null> {
   const params = {
     TableName: TABLE_NAME,
     Key: {
@@ -51,7 +54,9 @@ export async function createTask(
   taskData: Partial<Task>,
   createdBy: string
 ): Promise<Task> {
-  const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const taskId = `task-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
   const now = new Date().toISOString();
 
   const task: Task = {
@@ -142,7 +147,10 @@ export async function updateTask(
   return updatedTask;
 }
 
-export async function deleteTask(domain: string, taskId: string): Promise<void> {
+export async function deleteTask(
+  domain: string,
+  taskId: string
+): Promise<void> {
   await docClient.send(
     new DeleteCommand({
       TableName: TABLE_NAME,
