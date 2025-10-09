@@ -45,6 +45,7 @@ import type {
   Activity as ApiActivity,
   TaskStatus,
   ActivityType,
+  UpdateTaskRequest,
 } from '../../../shared/types';
 
 // Local types that use Date objects for frontend convenience
@@ -521,53 +522,38 @@ export default function SprintPage() {
     openDetails();
   };
 
-  const handleUpdateTask = (updatedTask: Task) => {
+  const handleUpdateTask = async (updatedTask: Task) => {
     // Find the original task to compare changes
     const originalTask = tasks.find((t) => t.id === updatedTask.id);
     if (!originalTask) return;
 
-    let taskWithActivity = updatedTask;
+    try {
+      // Create update request with only the fields that can be updated
+      const updateRequest: UpdateTaskRequest = {
+        title: updatedTask.title,
+        description: updatedTask.description,
+        status: updatedTask.status,
+        assignedTo: updatedTask.assignedTo,
+        hoursSpent: updatedTask.hoursSpent,
+        hoursExpected: updatedTask.hoursExpected,
+      };
 
-    // Track assignment changes
-    if (originalTask.assignedTo !== updatedTask.assignedTo) {
-      const activityText = updatedTask.assignedTo
-        ? `Assigned to ${updatedTask.assignedTo}`
-        : 'Unassigned';
-      taskWithActivity = addActivity(
-        taskWithActivity,
-        'assignment',
-        activityText,
-        {
-          oldValue: originalTask.assignedTo,
-          newValue: updatedTask.assignedTo,
-          fieldName: 'assignedTo',
-        }
+      // Call API to update task
+      const response = await apiClient.updateTask(updatedTask.id, updateRequest);
+      const apiTask = response.task;
+      const updatedTaskFromApi = convertApiTask(apiTask);
+
+      // Update local state with the response from API
+      setTasks((tasks) =>
+        tasks.map((task) =>
+          task.id === updatedTaskFromApi.id ? updatedTaskFromApi : task
+        )
       );
+      setSelectedTask(updatedTaskFromApi);
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      alert('Failed to update task. Please try again.');
     }
-
-    // Track hours changes
-    if (
-      originalTask.hoursSpent !== updatedTask.hoursSpent ||
-      originalTask.hoursExpected !== updatedTask.hoursExpected
-    ) {
-      taskWithActivity = addActivity(
-        taskWithActivity,
-        'hours_update',
-        `Hours updated: ${updatedTask.hoursSpent}h actual / ${updatedTask.hoursExpected}h initial`,
-        {
-          oldValue: `${originalTask.hoursSpent}/${originalTask.hoursExpected}`,
-          newValue: `${updatedTask.hoursSpent}/${updatedTask.hoursExpected}`,
-          fieldName: 'hours',
-        }
-      );
-    }
-
-    setTasks((tasks) =>
-      tasks.map((task) =>
-        task.id === taskWithActivity.id ? taskWithActivity : task
-      )
-    );
-    setSelectedTask(taskWithActivity);
   };
 
   const handleLinkTask = () => {

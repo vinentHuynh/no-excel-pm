@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as iam from 'aws-cdk-lib/aws-iam';
@@ -37,77 +38,89 @@ export class ApiStack extends cdk.Stack {
       TABLE_NAME: table.tableName,
     };
 
-    // Create Lambda functions
-    const getTasksLambda = new lambda.Function(this, 'GetTasksFunction', {
+    // Create Lambda functions using NodejsFunction for automatic bundling
+    const getTasksLambda = new nodejs.NodejsFunction(this, 'GetTasksFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'getTasksHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.getTasksHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: {
+        minify: false,
+        sourceMap: true,
+        externalModules: ['aws-sdk'],
+      },
     });
 
-    const getTaskLambda = new lambda.Function(this, 'GetTaskFunction', {
+    const getTaskLambda = new nodejs.NodejsFunction(this, 'GetTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'getTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.getTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const createTaskLambda = new lambda.Function(this, 'CreateTaskFunction', {
+    const createTaskLambda = new nodejs.NodejsFunction(this, 'CreateTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'createTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.createTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const updateTaskLambda = new lambda.Function(this, 'UpdateTaskFunction', {
+    const updateTaskLambda = new nodejs.NodejsFunction(this, 'UpdateTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'updateTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.updateTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const deleteTaskLambda = new lambda.Function(this, 'DeleteTaskFunction', {
+    const deleteTaskLambda = new nodejs.NodejsFunction(this, 'DeleteTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'deleteTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.deleteTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const addCommentLambda = new lambda.Function(this, 'AddCommentFunction', {
+    const addCommentLambda = new nodejs.NodejsFunction(this, 'AddCommentFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'addCommentHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.addCommentHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const linkTaskLambda = new lambda.Function(this, 'LinkTaskFunction', {
+    const linkTaskLambda = new nodejs.NodejsFunction(this, 'LinkTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'linkTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.linkTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
-    const unlinkTaskLambda = new lambda.Function(this, 'UnlinkTaskFunction', {
+    const unlinkTaskLambda = new nodejs.NodejsFunction(this, 'UnlinkTaskFunction', {
+      entry: 'src/handlers/tasks.ts',
+      handler: 'unlinkTaskHandler',
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'tasks.unlinkTaskHandler',
-      code: lambda.Code.fromAsset('src/handlers'),
       environment: lambdaEnvironment,
       role: lambdaRole,
       timeout: cdk.Duration.seconds(30),
+      bundling: { minify: false, sourceMap: true, externalModules: ['aws-sdk'] },
     });
 
     // Create API Gateway

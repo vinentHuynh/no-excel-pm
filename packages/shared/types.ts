@@ -87,7 +87,6 @@ export interface CreateTaskRequest {
 }
 
 export interface UpdateTaskRequest {
-  id: string;
   title?: string;
   description?: string;
   status?: TaskStatus;

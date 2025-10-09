@@ -31,6 +31,7 @@
     "typescript": "~5.9.3"
   },
   "devDependencies": {
-    "aws-cdk": "^2.147.0"
+    "aws-cdk": "^2.147.0",
+    "esbuild": "^0.25.10"
   }
 }

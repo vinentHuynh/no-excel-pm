@@ -66,6 +66,9 @@ importers:
       aws-cdk:
         specifier: ^2.147.0
         version: 2.1029.4
+      esbuild:
+        specifier: ^0.25.10
+        version: 0.25.10
 
   packages/frontend:
     dependencies:
