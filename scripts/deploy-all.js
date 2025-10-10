@@ -325,7 +325,7 @@ async function generateFrontendEnvFile(deployConfig, options = {}) {
     raw = await readFile(outputsPath, 'utf8');
   } catch (error) {
     throw new Error(
-  `Missing CDK outputs file at ${outputsPath}. Deploy ParoviewCognitoStack first.`
+      `Missing CDK outputs file at ${outputsPath}. Deploy ParoviewCognitoStack first.`
     );
   }
 
@@ -342,7 +342,7 @@ async function generateFrontendEnvFile(deployConfig, options = {}) {
 
   if (!userPoolId || !userPoolClientId) {
     throw new Error(
-  'Cognito outputs not found. Ensure ParoviewCognitoStack is deployed with outputs.json saved.'
+      'Cognito outputs not found. Ensure ParoviewCognitoStack is deployed with outputs.json saved.'
     );
   }
 
@@ -810,13 +810,15 @@ async function main() {
 
     const domainsLabel = deployConfig.allowedEmailDomains.join(', ');
 
-  logStep(`Deploying ParoviewCognitoStack (allowed domains: ${domainsLabel})`);
+    logStep(
+      `Deploying ParoviewCognitoStack (allowed domains: ${domainsLabel})`
+    );
     await run(
       PNPM,
       [
         'cdk',
         'deploy',
-  'ParoviewCognitoStack',
+        'ParoviewCognitoStack',
         '--outputs-file',
         'outputs.json',
         '--require-approval',
@@ -828,20 +830,20 @@ async function main() {
       }
     );
 
-  logStep('Deploying ParoviewDynamoDBStack');
+    logStep('Deploying ParoviewDynamoDBStack');
     await run(
       PNPM,
-  ['cdk', 'deploy', 'ParoviewDynamoDBStack', '--require-approval', 'never'],
+      ['cdk', 'deploy', 'ParoviewDynamoDBStack', '--require-approval', 'never'],
       {
         cwd: backendDir,
         env: envForDeploy,
       }
     );
 
-  logStep('Deploying ParoviewApiStack');
+    logStep('Deploying ParoviewApiStack');
     await run(
       PNPM,
-  ['cdk', 'deploy', 'ParoviewApiStack', '--require-approval', 'never'],
+      ['cdk', 'deploy', 'ParoviewApiStack', '--require-approval', 'never'],
       {
         cwd: backendDir,
         env: envForDeploy,
@@ -867,19 +869,25 @@ async function main() {
     );
 
     if (shouldDeployAmplify) {
-  logStep('Deploying ParoviewAmplifyStack');
+      logStep('Deploying ParoviewAmplifyStack');
       await run(
         PNPM,
-  ['cdk', 'deploy', 'ParoviewAmplifyStack', '--require-approval', 'never'],
+        [
+          'cdk',
+          'deploy',
+          'ParoviewAmplifyStack',
+          '--require-approval',
+          'never',
+        ],
         {
           cwd: backendDir,
           env: envForDeploy,
         }
       );
     } else if (options.mode === 'all') {
-  console.log('ParoviewAmplifyStack skipped (no GitHub token provided).');
+      console.log('ParoviewAmplifyStack skipped (no GitHub token provided).');
     } else {
-  console.log('ParoviewAmplifyStack skipped (backend-only mode).');
+      console.log('ParoviewAmplifyStack skipped (backend-only mode).');
     }
   } else {
     logStep('Frontend-only mode: skipping backend deployment.');

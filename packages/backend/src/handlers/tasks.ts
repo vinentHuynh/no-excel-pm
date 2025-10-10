@@ -11,11 +11,7 @@ import {
   deleteTask,
   addActivity,
 } from './db';
-import {
-  Task,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-} from '@paroview/shared';
+import { Task, CreateTaskRequest, UpdateTaskRequest } from '@paroview/shared';
 
 // Helper to extract user info from Cognito authorizer
 function getUserFromEvent(event: APIGatewayProxyEvent): {

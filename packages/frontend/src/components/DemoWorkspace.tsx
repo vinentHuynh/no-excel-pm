@@ -310,8 +310,8 @@ export function DemoWorkspace() {
       <Stack gap='xs'>
         <Title order={2}>Interactive sprint demo</Title>
         <Text c='dimmed'>
-          Drag cards to see how Paroview keeps delivery, context, and impact
-          in sync — all without spreadsheets.
+          Drag cards to see how Paroview keeps delivery, context, and impact in
+          sync — all without spreadsheets.
         </Text>
       </Stack>
 
