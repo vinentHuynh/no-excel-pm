@@ -20,10 +20,16 @@ $outputs = Get-Content $OutputsFile -Raw | ConvertFrom-Json
 # Extract Cognito values
 $userPoolId = $outputs.CognitoStack.UserPoolId
 $userPoolClientId = $outputs.CognitoStack.UserPoolClientId
+$allowedEmailDomains = $outputs.CognitoStack.AllowedEmailDomains
 
 if (-Not $userPoolId -or -Not $userPoolClientId) {
     Write-Host "❌ Could not find Cognito values in outputs.json" -ForegroundColor Red
     exit 1
+}
+
+if (-Not $allowedEmailDomains) {
+    Write-Host "⚠️ Allowed email domains not found in outputs.json; defaulting to noexcelpm.com" -ForegroundColor Yellow
+    $allowedEmailDomains = "noexcelpm.com"
 }
 
 # Create .env file
@@ -31,6 +37,7 @@ $envFile = "packages/frontend/.env"
 $envContent = @"
 VITE_COGNITO_USER_POOL_ID=$userPoolId
 VITE_COGNITO_USER_POOL_CLIENT_ID=$userPoolClientId
+VITE_ALLOWED_EMAIL_DOMAINS=$allowedEmailDomains
 "@
 
 $envContent | Out-File -FilePath $envFile -Encoding UTF8
@@ -40,5 +47,6 @@ Write-Host ""
 Write-Host "📝 Created: $envFile" -ForegroundColor White
 Write-Host "   VITE_COGNITO_USER_POOL_ID: $userPoolId" -ForegroundColor Gray
 Write-Host "   VITE_COGNITO_USER_POOL_CLIENT_ID: $userPoolClientId" -ForegroundColor Gray
+Write-Host "   VITE_ALLOWED_EMAIL_DOMAINS: $allowedEmailDomains" -ForegroundColor Gray
 Write-Host ""
 Write-Host "🚀 You can now run: cd packages/frontend && pnpm dev" -ForegroundColor Cyan

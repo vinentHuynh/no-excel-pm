@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter \"./packages/**\" dev",
-    "deploy:s3": "pnpm --filter \"./packages/frontend\" build && aws s3 sync ./packages/frontend/dist s3://no-excel-pm-frontend-bucket"
+    "deploy:s3": "pnpm --filter \"./packages/frontend\" build && aws s3 sync ./packages/frontend/dist s3://no-excel-pm-frontend-bucket",
+    "deploy:frontend": "pwsh -File deploy-frontend.ps1",
+    "deploy:cloudfront": "pnpm --filter \"./packages/backend\" cdk deploy CloudFrontStack --outputs-file outputs.json"
   },
   "devDependencies": {
     "typescript": "~5.9.3"
