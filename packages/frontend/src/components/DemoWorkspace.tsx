@@ -310,7 +310,7 @@ export function DemoWorkspace() {
       <Stack gap='xs'>
         <Title order={2}>Interactive sprint demo</Title>
         <Text c='dimmed'>
-          Drag cards to see how No Excel PM keeps delivery, context, and impact
+          Drag cards to see how Paroview keeps delivery, context, and impact
           in sync — all without spreadsheets.
         </Text>
       </Stack>

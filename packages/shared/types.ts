@@ -1,4 +1,4 @@
-// Shared types for the no-excel-pm application
+// Shared types for the Paroview application
 // Single table design with domain isolation
 
 export type TaskStatus = 'backlog' | 'in-progress' | 'completed';

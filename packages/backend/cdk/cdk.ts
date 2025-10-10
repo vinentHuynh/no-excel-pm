@@ -7,77 +7,160 @@ import { DynamoDBStack } from './dynamodb-stack';
 import { ApiStack } from './api-stack';
 import { CloudFrontStack } from './cloudfront-stack';
 
+type DeployConfigInput = {
+  allowedEmailDomains?: string[] | string;
+  domainName?: string;
+  region?: string;
+  certificateRegion?: string;
+  githubToken?: string;
+  hostedZoneId?: string;
+  hostedZoneName?: string;
+};
+
+type DeployConfig = {
+  allowedEmailDomains: string[];
+  domainName: string;
+  region: string;
+  certificateRegion: string;
+  githubToken?: string;
+  hostedZoneId?: string;
+  hostedZoneName?: string;
+};
+
+const DEFAULT_DEPLOY_CONFIG: DeployConfig = {
+  allowedEmailDomains: ['paroview.com'],
+  domainName: 'paroview.com',
+  region: 'us-east-1',
+  certificateRegion: 'us-east-1',
+};
+
 const app = new cdk.App();
 
-// Get GitHub token from context (you'll pass this as a parameter)
-const githubToken = app.node.tryGetContext('githubToken');
-const allowedEmailDomainsContext = app.node.tryGetContext(
-  'allowedEmailDomains'
-);
+const rawDeployConfigFromContext = app.node.tryGetContext('deployConfig');
 
-const allowedEmailDomains = (() => {
-  if (Array.isArray(allowedEmailDomainsContext)) {
-    return allowedEmailDomainsContext;
+function coerceDeployConfig(input: unknown): DeployConfigInput {
+  if (!input) {
+    return {};
   }
 
-  if (typeof allowedEmailDomainsContext === 'string') {
-    return allowedEmailDomainsContext.split(',');
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as DeployConfigInput;
+      }
+    } catch (error) {
+      console.warn(
+        'Warning: Failed to parse DEPLOY_CONFIG JSON. Falling back to defaults.'
+      );
+      console.warn(error instanceof Error ? error.message : error);
+    }
+    return {};
   }
 
-  const envDomains = process.env.ALLOWED_EMAIL_DOMAINS;
-  if (envDomains) {
-    return envDomains.split(',');
+  if (Array.isArray(input)) {
+    return { allowedEmailDomains: input as string[] };
   }
 
-  return ['noexcelpm.com'];
-})()
-  .map((domain) => domain.trim().toLowerCase())
-  .filter((domain) => domain.length > 0);
+  if (typeof input === 'object') {
+    return input as DeployConfigInput;
+  }
 
-if (allowedEmailDomains.length === 0) {
-  throw new Error(
-    'No allowed email domains configured. Provide context allowedEmailDomains or set ALLOWED_EMAIL_DOMAINS env variable.'
-  );
+  return {};
 }
+
+function normaliseDomains(value: string[] | string | undefined): string[] {
+  if (!value) {
+    return [...DEFAULT_DEPLOY_CONFIG.allowedEmailDomains];
+  }
+
+  const domains = Array.isArray(value)
+    ? value
+    : value
+        .split(',')
+        .map((domain) => domain.trim())
+        .filter((domain) => domain.length > 0);
+
+  return domains.map((domain) => domain.toLowerCase());
+}
+
+function buildDeployConfig(): DeployConfig {
+  const envConfig = coerceDeployConfig(process.env.DEPLOY_CONFIG);
+  const contextConfig = coerceDeployConfig(rawDeployConfigFromContext);
+
+  const select = <K extends keyof DeployConfigInput>(key: K) =>
+    envConfig[key] ?? contextConfig[key];
+
+  const allowedEmailDomains = normaliseDomains(select('allowedEmailDomains'));
+
+  if (allowedEmailDomains.length === 0) {
+    throw new Error(
+      'No allowed email domains configured. Provide DEPLOY_CONFIG.allowedEmailDomains or include them in deployConfig context.'
+    );
+  }
+
+  return {
+    allowedEmailDomains,
+    domainName:
+      (select('domainName') as string | undefined) ??
+      DEFAULT_DEPLOY_CONFIG.domainName,
+    region:
+      (select('region') as string | undefined) ?? DEFAULT_DEPLOY_CONFIG.region,
+    certificateRegion:
+      (select('certificateRegion') as string | undefined) ??
+      DEFAULT_DEPLOY_CONFIG.certificateRegion,
+    githubToken: select('githubToken') as string | undefined,
+    hostedZoneId: select('hostedZoneId') as string | undefined,
+    hostedZoneName: select('hostedZoneName') as string | undefined,
+  };
+}
+
+const deployConfig = buildDeployConfig();
+
+// Get GitHub token from deploy config or context
+const githubToken =
+  deployConfig.githubToken ?? app.node.tryGetContext('githubToken');
 
 if (!githubToken) {
   console.warn(
     'Warning: GitHub token not provided. Amplify stack will not be deployed.\n' +
-      'To deploy Amplify stack, run: pnpm cdk deploy --all --context githubToken=YOUR_GITHUB_TOKEN'
+      'Set githubToken in DEPLOY_CONFIG or run: pnpm cdk deploy --all --context githubToken=YOUR_GITHUB_TOKEN'
   );
 }
 
 // Deploy Cognito Stack
-const cognitoStack = new CognitoStack(app, 'CognitoStack', {
-  allowedEmailDomains,
+const cognitoStack = new CognitoStack(app, 'ParoviewCognitoStack', {
+  allowedEmailDomains: deployConfig.allowedEmailDomains,
 });
 
 // Deploy DynamoDB Stack
-const dynamoDBStack = new DynamoDBStack(app, 'DynamoDBStack');
+const dynamoDBStack = new DynamoDBStack(app, 'ParoviewDynamoDBStack');
 
 // Deploy API Stack
-const apiStack = new ApiStack(app, 'ApiStack', {
+const apiStack = new ApiStack(app, 'ParoviewApiStack', {
   table: dynamoDBStack.table,
   userPool: cognitoStack.userPool,
 });
 
 // Deploy CloudFront Stack for custom domain
-// Note: This stack is in us-east-1 (required for ACM certificate with CloudFront)
+// Stack executes in us-east-1; certificate is provisioned cross-region (us-east-1) as required by CloudFront
 // Environment variables are configured separately to avoid cross-region references
-new CloudFrontStack(app, 'CloudFrontStack', {
-  domainName: 'no-excel-pm.com',
+new CloudFrontStack(app, 'ParoviewCloudFrontStack', {
+  domainName: deployConfig.domainName,
+  certificateRegion: deployConfig.certificateRegion,
+  hostedZoneId: deployConfig.hostedZoneId,
+  hostedZoneName: deployConfig.hostedZoneName,
   env: {
-    // Certificate must be in us-east-1 for CloudFront
-    region: 'us-east-2',
+    region: deployConfig.region,
   },
 });
 
 // Deploy Amplify Stack (only if GitHub token is provided)
 if (githubToken) {
-  new AmplifyStack(app, 'AmplifyStack', {
+  new AmplifyStack(app, 'ParoviewAmplifyStack', {
     userPoolId: cognitoStack.userPoolId,
     userPoolClientId: cognitoStack.userPoolClientId,
     githubToken: githubToken,
-    allowedEmailDomains,
+    allowedEmailDomains: deployConfig.allowedEmailDomains,
   });
 }

@@ -45,7 +45,7 @@ export function Navigation() {
       <AppShell.Header>
         <Group h='100%' px='md' justify='space-between'>
           <Burger opened={opened} onClick={toggle} hiddenFrom='sm' size='sm' />
-          <Text fw={600}>No Excel PM</Text>
+          <Text fw={600}>Paroview</Text>
           <Group gap='xs'>
             <ActionIcon
               variant='default'

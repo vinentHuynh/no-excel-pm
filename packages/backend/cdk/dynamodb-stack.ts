@@ -9,8 +9,8 @@ export class DynamoDBStack extends cdk.Stack {
     super(scope, id, props);
 
     // Single table design with domain isolation
-    this.table = new dynamodb.Table(this, 'NoExcelPMTable', {
-      tableName: 'no-excel-pm-table',
+    this.table = new dynamodb.Table(this, 'ParoviewTable', {
+      tableName: 'paroview-table',
       partitionKey: {
         name: 'PK',
         type: dynamodb.AttributeType.STRING,
@@ -20,9 +20,6 @@ export class DynamoDBStack extends cdk.Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST, // On-demand pricing
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep data on stack deletion
-      pointInTimeRecovery: true, // Enable backups
-      stream: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES, // Enable streams for future use
     });
 
     // Global Secondary Index for querying by domain and entity type
@@ -54,16 +51,16 @@ export class DynamoDBStack extends cdk.Stack {
     });
 
     // Output the table name
-    new cdk.CfnOutput(this, 'TableName', {
+    new cdk.CfnOutput(this, 'ParoviewTableNameOutput', {
       value: this.table.tableName,
       description: 'DynamoDB Table Name',
-      exportName: 'NoExcelPMTableName',
+      exportName: 'ParoviewTableName',
     });
 
-    new cdk.CfnOutput(this, 'TableArn', {
+    new cdk.CfnOutput(this, 'ParoviewTableArnOutput', {
       value: this.table.tableArn,
       description: 'DynamoDB Table ARN',
-      exportName: 'NoExcelPMTableArn',
+      exportName: 'ParoviewTableArn',
     });
   }
 }

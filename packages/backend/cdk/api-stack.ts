@@ -124,9 +124,9 @@ export class ApiStack extends cdk.Stack {
     });
 
     // Create API Gateway
-    this.api = new apigateway.RestApi(this, 'NoExcelPMApi', {
-      restApiName: 'No Excel PM API',
-      description: 'API for No Excel PM project management app',
+    this.api = new apigateway.RestApi(this, 'ParoviewApi', {
+      restApiName: 'Paroview API',
+      description: 'API for the Paroview project management app',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
@@ -226,7 +226,7 @@ export class ApiStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'ApiEndpoint', {
       value: this.api.url,
       description: 'API Gateway endpoint URL',
-      exportName: 'NoExcelPMApiEndpoint',
+      exportName: 'ParoviewApiEndpoint',
     });
   }
 }

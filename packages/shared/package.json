@@ -1,5 +1,5 @@
 {
-  "name": "@no-excel-pm/shared",
+  "name": "@paroview/shared",
   "version": "1.0.0",
   "type": "module",
   "main": "./types.ts",

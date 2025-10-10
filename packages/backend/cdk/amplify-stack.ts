@@ -15,9 +15,9 @@ export class AmplifyStack extends cdk.Stack {
     super(scope, id, props);
 
     // Create Amplify App
-    const amplifyApp = new amplify.CfnApp(this, 'NoExcelPMApp', {
-      name: 'no-excel-pm',
-      repository: 'https://github.com/vinentHuynh/no-excel-pm',
+    const amplifyApp = new amplify.CfnApp(this, 'ParoviewApp', {
+      name: 'paroview',
+      repository: 'https://github.com/vinentHuynh/paroview',
       accessToken: props.githubToken,
       buildSpec: `version: 1
 frontend:

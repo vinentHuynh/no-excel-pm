@@ -5,39 +5,80 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
-import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 
 interface CloudFrontStackProps extends cdk.StackProps {
   domainName: string;
+  certificateRegion?: string;
+  hostedZoneId?: string;
+  hostedZoneName?: string;
 }
 
 export class CloudFrontStack extends cdk.Stack {
   public readonly distribution: cloudfront.Distribution;
-  public readonly bucket: s3.Bucket;
+  public readonly bucket: s3.IBucket;
   public readonly hostedZone: route53.IHostedZone;
 
   constructor(scope: Construct, id: string, props: CloudFrontStackProps) {
     super(scope, id, props);
 
     const { domainName } = props;
+    const normalizedDomain = domainName
+      .replace(/[^a-z0-9-]/gi, '-')
+      .toLowerCase();
+    const desiredBucketName = `${normalizedDomain}-frontend-cdk`;
 
-    // Create S3 bucket for frontend hosting
+    // Always create new S3 bucket for frontend hosting
     this.bucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `${domainName}-frontend`,
+      bucketName: desiredBucketName,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
       autoDeleteObjects: false,
+      enforceSSL: true,
     });
 
-    // Create Route53 Hosted Zone
-    this.hostedZone = new route53.PublicHostedZone(this, 'HostedZone', {
-      zoneName: domainName,
-    });
+    // Look up the pre-registered Route53 hosted zone for the domain
+    const hostedZoneName = props.hostedZoneName ?? domainName;
+    const envAccount = props.env?.account ?? process.env.CDK_DEFAULT_ACCOUNT;
+    const envRegion = props.env?.region ?? process.env.CDK_DEFAULT_REGION;
 
-    // Create ACM Certificate in us-east-1 (required for CloudFront)
+    if (props.hostedZoneId) {
+      this.hostedZone = route53.HostedZone.fromHostedZoneAttributes(
+        this,
+        'HostedZone',
+        {
+          hostedZoneId: props.hostedZoneId,
+          zoneName: hostedZoneName,
+        }
+      );
+    } else if (envAccount && envRegion) {
+      this.hostedZone = route53.HostedZone.fromLookup(this, 'HostedZone', {
+        domainName: hostedZoneName,
+        privateZone: false,
+      });
+    } else {
+      throw new Error(
+        'CloudFrontStack requires either hostedZoneId/hostedZoneName props or an environment with account and region set to perform a hosted zone lookup.'
+      );
+    }
+
+    // CloudFront custom domains still require the certificate to reside in us-east-1
+    const certificateRegion = props.certificateRegion ?? 'us-east-1';
+
+    const stackRegion = cdk.Stack.of(this).region;
+
+    if (
+      certificateRegion &&
+      !cdk.Token.isUnresolved(stackRegion) &&
+      certificateRegion !== stackRegion
+    ) {
+      cdk.Annotations.of(this).addWarning(
+        `certificateRegion (${certificateRegion}) differs from stack region (${stackRegion}). ` +
+          'ACM certificates must be created in the stack region. Deploy this stack in the certificate region or manage the certificate in a separate stack.'
+      );
+    }
+
     const certificate = new acm.Certificate(this, 'Certificate', {
-      domainName: domainName,
+      domainName,
       subjectAlternativeNames: [`www.${domainName}`],
       validation: acm.CertificateValidation.fromDns(this.hostedZone),
     });
@@ -129,8 +170,13 @@ export class CloudFrontStack extends cdk.Stack {
       description: 'Route53 Hosted Zone ID',
     });
 
+    const hostedZoneNameServers = this.hostedZone.hostedZoneNameServers;
+
     new cdk.CfnOutput(this, 'NameServers', {
-      value: cdk.Fn.join(', ', this.hostedZone.hostedZoneNameServers || []),
+      value:
+        hostedZoneNameServers && hostedZoneNameServers.length > 0
+          ? cdk.Fn.join(', ', hostedZoneNameServers)
+          : 'Name servers managed outside of this deployment. Check the Route53 console if needed.',
       description: 'Name servers for your domain registrar',
     });
 

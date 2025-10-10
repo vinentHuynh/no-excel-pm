@@ -25,7 +25,7 @@ export class CognitoStack extends cdk.Stack {
     }
 
     const userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: 'no-excel-pm-user-pool',
+      userPoolName: 'paroview-user-pool',
       selfSignUpEnabled: true,
       accountRecovery: cognito.AccountRecovery.PHONE_AND_EMAIL,
       userVerification: {

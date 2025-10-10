@@ -13,7 +13,7 @@ import {
   buildTaskPK,
   buildMetaSK,
   buildDomainGSI1PK,
-} from '@no-excel-pm/shared';
+} from '@paroview/shared';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);

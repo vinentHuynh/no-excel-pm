@@ -15,7 +15,7 @@ import {
   Task,
   CreateTaskRequest,
   UpdateTaskRequest,
-} from '@no-excel-pm/shared';
+} from '@paroview/shared';
 
 // Helper to extract user info from Cognito authorizer
 function getUserFromEvent(event: APIGatewayProxyEvent): {

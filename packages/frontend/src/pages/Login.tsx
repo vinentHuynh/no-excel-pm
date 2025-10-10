@@ -54,7 +54,7 @@ export default function LoginPage() {
       }
 
       setError(
-        `The domain ${domain} is not registered with No Excel PM yet. Ask your workspace admin to enable it.`
+        `The domain ${domain} isn't registered with Paroview yet. Ask your workspace admin to enable it.`
       );
       return;
     }
@@ -133,7 +133,7 @@ export default function LoginPage() {
       <Paper maw={420} w='100%' p='xl' radius='md' shadow='md' withBorder>
         <Stack gap='xs'>
           <Title order={2} ta='center'>
-            Sign in to No Excel PM
+            Sign in to Paroview
           </Title>
           <Text ta='center' c='dimmed'>
             We currently support business domains:{' '}

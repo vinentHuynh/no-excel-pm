@@ -6,7 +6,7 @@
       "Effect": "Allow",
       "Principal": "*",
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::no-excel-pm-frontend-20251005/*"
+  "Resource": "arn:aws:s3:::paroview-frontend-20251005/*"
     }
   ]
 }

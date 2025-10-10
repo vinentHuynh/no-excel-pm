@@ -19,7 +19,7 @@
     "@emotion/react": "^11.14.0",
     "@mantine/core": "^8.3.3",
     "@mantine/hooks": "^8.3.3",
-    "@no-excel-pm/shared": "workspace:*",
+    "@paroview/shared": "workspace:*",
     "@tabler/icons-react": "^3.35.0",
     "@types/aws-lambda": "^8.10.155",
     "aws-amplify": "^6.8.1",
