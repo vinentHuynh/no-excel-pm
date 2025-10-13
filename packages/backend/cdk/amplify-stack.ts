@@ -8,6 +8,7 @@ interface AmplifyStackProps extends cdk.StackProps {
   userPoolClientId: string;
   githubToken: string;
   allowedEmailDomains: string[];
+  allowedEmailOverrides: string[];
 }
 
 export class AmplifyStack extends cdk.Stack {
@@ -48,6 +49,10 @@ frontend:
         {
           name: 'VITE_ALLOWED_EMAIL_DOMAINS',
           value: props.allowedEmailDomains.join(','),
+        },
+        {
+          name: 'VITE_ALLOWED_EMAIL_OVERRIDES',
+          value: props.allowedEmailOverrides.join(','),
         },
       ],
       platform: 'WEB_COMPUTE',

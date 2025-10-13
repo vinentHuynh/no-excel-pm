@@ -6,6 +6,12 @@ const allowedEmailDomains = envDomains
   .map((domain) => domain.trim().toLowerCase())
   .filter(Boolean);
 
+const envEmailOverrides = process.env.ALLOWED_EMAIL_OVERRIDES ?? '';
+const allowedEmailOverrides = envEmailOverrides
+  .split(',')
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
+
 function assertAllowedDomainsConfigured(): void {
   if (allowedEmailDomains.length === 0) {
     throw new Error(
@@ -34,6 +40,11 @@ export const handler = async (
 
   const email = event.request.userAttributes.email;
   const domain = extractDomain(email);
+  const normalizedEmail = email.toLowerCase();
+
+  if (allowedEmailOverrides.includes(normalizedEmail)) {
+    return event;
+  }
 
   if (!allowedEmailDomains.includes(domain)) {
     throw new Error(

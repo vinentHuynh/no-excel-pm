@@ -10,6 +10,8 @@ import DashboardPage from './pages/Dashboard';
 import SprintPage from './pages/Sprint';
 import BacklogPage from './pages/Backlog';
 import LoginPage from './pages/Login';
+import DemoPage from './pages/Demo';
+import UsersPage from './pages/Users';
 
 const router = createBrowserRouter([
   {
@@ -28,11 +30,19 @@ const router = createBrowserRouter([
         path: '/backlog',
         element: <BacklogPage />,
       },
+      {
+        path: '/users',
+        element: <UsersPage />,
+      },
     ],
   },
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/demo',
+    element: <DemoPage />,
   },
 ]);
 

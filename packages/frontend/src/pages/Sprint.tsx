@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -60,6 +60,15 @@ interface Task
   > {
   activities: Activity[];
 }
+
+export type SprintDemoTask = ApiTask;
+
+type SprintPageProps = {
+  demoMode?: boolean;
+  demoTasks?: SprintDemoTask[];
+};
+
+const EMPTY_DEMO_TASKS: SprintDemoTask[] = [];
 
 // Helper to convert API task to frontend task
 function convertApiTask(apiTask: ApiTask): Task {
@@ -317,21 +326,31 @@ function Column({
   );
 }
 
-export default function SprintPage() {
+export default function SprintPage({
+  demoMode = false,
+  demoTasks,
+}: SprintPageProps) {
+  const demoTaskSource = demoTasks ?? EMPTY_DEMO_TASKS;
   const { user } = useAuthenticator((context) => [context.user]);
   const currentUserName =
-    user?.signInDetails?.loginId?.split('@')[0] || user?.username || 'User';
+    user?.signInDetails?.loginId?.split('@')[0] ||
+    user?.username ||
+    (demoMode ? 'Demo User' : 'User');
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!demoMode);
   const [error, setError] = useState<string | null>(null);
 
-  // Load tasks from API on mount
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  // Load tasks from API or demo data on mount/when mode changes
+  const loadTasks = useCallback(async () => {
+    if (demoMode) {
+      const initialTasks = demoTaskSource.map((task) => convertApiTask(task));
+      setTasks(initialTasks);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
-  const loadTasks = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -344,7 +363,11 @@ export default function SprintPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [demoMode, demoTaskSource]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
@@ -492,6 +515,40 @@ export default function SprintPage() {
   const handleAddTask = async () => {
     if (!newTaskTitle.trim()) return;
 
+    if (demoMode) {
+      const now = Date.now();
+      const newTask: Task = {
+        id: `demo-task-${now}`,
+        title: newTaskTitle,
+        description: newTaskDescription,
+        status: newTaskStatus,
+        hoursExpected: newTaskHoursExpected,
+        hoursSpent: newTaskHoursSpent,
+        assignedTo: newTaskAssignedTo,
+        linkedTasks: [],
+        activities: [
+          {
+            id: `demo-activity-${now}`,
+            type: 'created',
+            text: 'Task created in demo mode',
+            author: currentUserName,
+            timestamp: new Date(),
+          },
+        ],
+      };
+
+      setTasks([...tasks, newTask]);
+
+      setNewTaskTitle('');
+      setNewTaskDescription('');
+      setNewTaskStatus('backlog');
+      setNewTaskHoursExpected(0);
+      setNewTaskHoursSpent(0);
+      setNewTaskAssignedTo('');
+      close();
+      return;
+    }
+
     try {
       const response = await apiClient.createTask({
         title: newTaskTitle,
@@ -527,6 +584,14 @@ export default function SprintPage() {
     const originalTask = tasks.find((t) => t.id === updatedTask.id);
     if (!originalTask) return;
 
+    if (demoMode) {
+      setTasks((tasks) =>
+        tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+      );
+      setSelectedTask(updatedTask);
+      return;
+    }
+
     try {
       // Create update request with only the fields that can be updated
       const updateRequest: UpdateTaskRequest = {
@@ -539,7 +604,10 @@ export default function SprintPage() {
       };
 
       // Call API to update task
-      const response = await apiClient.updateTask(updatedTask.id, updateRequest);
+      const response = await apiClient.updateTask(
+        updatedTask.id,
+        updateRequest
+      );
       const apiTask = response.task;
       const updatedTaskFromApi = convertApiTask(apiTask);
 
@@ -620,6 +688,28 @@ export default function SprintPage() {
   const handleAddComment = async () => {
     if (!selectedTask || !newComment.trim()) return;
 
+    if (demoMode) {
+      const commentActivity: Activity = {
+        id: `${selectedTask.id}-comment-${Date.now()}`,
+        type: 'comment',
+        text: newComment,
+        author: currentUserName,
+        timestamp: new Date(),
+      };
+
+      const updatedTask: Task = {
+        ...selectedTask,
+        activities: [...selectedTask.activities, commentActivity],
+      };
+
+      setTasks((tasks) =>
+        tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
+      );
+      setSelectedTask(updatedTask);
+      setNewComment('');
+      return;
+    }
+
     try {
       const response = await apiClient.addComment(selectedTask.id, newComment);
       const updatedTask = convertApiTask(response.task);
@@ -636,6 +726,14 @@ export default function SprintPage() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (demoMode) {
+      setTasks(tasks.filter((task) => task.id !== id));
+      if (selectedTask?.id === id) {
+        setSelectedTask(null);
+      }
+      return;
+    }
+
     try {
       await apiClient.deleteTask(id);
       setTasks(tasks.filter((task) => task.id !== id));

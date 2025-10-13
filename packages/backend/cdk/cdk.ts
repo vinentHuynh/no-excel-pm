@@ -9,6 +9,7 @@ import { CloudFrontStack } from './cloudfront-stack';
 
 type DeployConfigInput = {
   allowedEmailDomains?: string[] | string;
+  allowedEmailOverrides?: string[] | string;
   domainName?: string;
   region?: string;
   certificateRegion?: string;
@@ -19,6 +20,7 @@ type DeployConfigInput = {
 
 type DeployConfig = {
   allowedEmailDomains: string[];
+  allowedEmailOverrides: string[];
   domainName: string;
   region: string;
   certificateRegion: string;
@@ -29,6 +31,7 @@ type DeployConfig = {
 
 const DEFAULT_DEPLOY_CONFIG: DeployConfig = {
   allowedEmailDomains: ['paroview.com'],
+  allowedEmailOverrides: [],
   domainName: 'paroview.com',
   region: 'us-east-1',
   certificateRegion: 'us-east-1',
@@ -69,9 +72,12 @@ function coerceDeployConfig(input: unknown): DeployConfigInput {
   return {};
 }
 
-function normaliseDomains(value: string[] | string | undefined): string[] {
+function normaliseStringList(
+  value: string[] | string | undefined,
+  fallback: string[]
+): string[] {
   if (!value) {
-    return [...DEFAULT_DEPLOY_CONFIG.allowedEmailDomains];
+    return [...fallback];
   }
 
   const domains = Array.isArray(value)
@@ -91,7 +97,14 @@ function buildDeployConfig(): DeployConfig {
   const select = <K extends keyof DeployConfigInput>(key: K) =>
     envConfig[key] ?? contextConfig[key];
 
-  const allowedEmailDomains = normaliseDomains(select('allowedEmailDomains'));
+  const allowedEmailDomains = normaliseStringList(
+    select('allowedEmailDomains'),
+    DEFAULT_DEPLOY_CONFIG.allowedEmailDomains
+  );
+  const allowedEmailOverrides = normaliseStringList(
+    select('allowedEmailOverrides'),
+    DEFAULT_DEPLOY_CONFIG.allowedEmailOverrides
+  );
 
   if (allowedEmailDomains.length === 0) {
     throw new Error(
@@ -101,6 +114,7 @@ function buildDeployConfig(): DeployConfig {
 
   return {
     allowedEmailDomains,
+    allowedEmailOverrides,
     domainName:
       (select('domainName') as string | undefined) ??
       DEFAULT_DEPLOY_CONFIG.domainName,
@@ -131,6 +145,7 @@ if (!githubToken) {
 // Deploy Cognito Stack
 const cognitoStack = new CognitoStack(app, 'ParoviewCognitoStack', {
   allowedEmailDomains: deployConfig.allowedEmailDomains,
+  allowedEmailOverrides: deployConfig.allowedEmailOverrides,
 });
 
 // Deploy DynamoDB Stack
@@ -162,5 +177,6 @@ if (githubToken) {
     userPoolClientId: cognitoStack.userPoolClientId,
     githubToken: githubToken,
     allowedEmailDomains: deployConfig.allowedEmailDomains,
+    allowedEmailOverrides: deployConfig.allowedEmailOverrides,
   });
 }

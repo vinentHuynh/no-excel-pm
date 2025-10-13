@@ -8,6 +8,7 @@ import * as path from 'path';
 
 interface CognitoStackProps extends cdk.StackProps {
   allowedEmailDomains: string[];
+  allowedEmailOverrides?: string[];
 }
 
 export class CognitoStack extends cdk.Stack {
@@ -61,6 +62,9 @@ export class CognitoStack extends cdk.Stack {
         handler: 'handler',
         environment: {
           ALLOWED_EMAIL_DOMAINS: props.allowedEmailDomains.join(','),
+          ALLOWED_EMAIL_OVERRIDES: (props.allowedEmailOverrides ?? []).join(
+            ','
+          ),
         },
         bundling: {
           externalModules: ['aws-sdk'],

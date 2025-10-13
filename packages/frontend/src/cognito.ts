@@ -4,6 +4,8 @@ const userPoolId = import.meta.env.VITE_COGNITO_USER_POOL_ID;
 
 const userPoolClientId = import.meta.env.VITE_COGNITO_USER_POOL_CLIENT_ID;
 const allowedEmailDomainsEnv = import.meta.env.VITE_ALLOWED_EMAIL_DOMAINS;
+const allowedEmailOverridesEnv =
+  import.meta.env.VITE_ALLOWED_EMAIL_OVERRIDES ?? '';
 
 if (!userPoolId || !userPoolClientId) {
   throw new Error(
@@ -28,6 +30,11 @@ if (allowedEmailDomains.length === 0) {
   );
 }
 
+export const allowedEmailOverrides = allowedEmailOverridesEnv
+  .split(',')
+  .map((email: string) => email.trim().toLowerCase())
+  .filter(Boolean);
+
 export function getEmailDomain(email: string): string | null {
   const trimmed = email.trim();
   const atIndex = trimmed.lastIndexOf('@');
@@ -40,11 +47,15 @@ export function getEmailDomain(email: string): string | null {
 
 export function isAllowedBusinessEmail(email: string): boolean {
   const domain = getEmailDomain(email);
+  const normalizedEmail = email.trim().toLowerCase();
   if (!domain) {
     return false;
   }
 
-  return allowedEmailDomains.includes(domain);
+  return (
+    allowedEmailOverrides.includes(normalizedEmail) ||
+    allowedEmailDomains.includes(domain)
+  );
 }
 
 let configured = false;
