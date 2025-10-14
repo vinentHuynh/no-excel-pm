@@ -5,36 +5,25 @@ import { CognitoStack } from './cognito-stack';
 import { AmplifyStack } from './amplify-stack';
 import { DynamoDBStack } from './dynamodb-stack';
 import { ApiStack } from './api-stack';
-import { CloudFrontStack } from './cloudfront-stack';
 
 type DeployConfigInput = {
   allowedEmailDomains?: string[] | string;
   allowedEmailOverrides?: string[] | string;
-  domainName?: string;
   region?: string;
-  certificateRegion?: string;
   githubToken?: string;
-  hostedZoneId?: string;
-  hostedZoneName?: string;
 };
 
 type DeployConfig = {
   allowedEmailDomains: string[];
   allowedEmailOverrides: string[];
-  domainName: string;
   region: string;
-  certificateRegion: string;
   githubToken?: string;
-  hostedZoneId?: string;
-  hostedZoneName?: string;
 };
 
 const DEFAULT_DEPLOY_CONFIG: DeployConfig = {
-  allowedEmailDomains: ['paroview.com'],
+  allowedEmailDomains: [],
   allowedEmailOverrides: [],
-  domainName: 'paroview.com',
   region: 'us-east-1',
-  certificateRegion: 'us-east-1',
 };
 
 const app = new cdk.App();
@@ -115,17 +104,9 @@ function buildDeployConfig(): DeployConfig {
   return {
     allowedEmailDomains,
     allowedEmailOverrides,
-    domainName:
-      (select('domainName') as string | undefined) ??
-      DEFAULT_DEPLOY_CONFIG.domainName,
     region:
       (select('region') as string | undefined) ?? DEFAULT_DEPLOY_CONFIG.region,
-    certificateRegion:
-      (select('certificateRegion') as string | undefined) ??
-      DEFAULT_DEPLOY_CONFIG.certificateRegion,
     githubToken: select('githubToken') as string | undefined,
-    hostedZoneId: select('hostedZoneId') as string | undefined,
-    hostedZoneName: select('hostedZoneName') as string | undefined,
   };
 }
 
@@ -155,19 +136,6 @@ const dynamoDBStack = new DynamoDBStack(app, 'ParoviewDynamoDBStack');
 const apiStack = new ApiStack(app, 'ParoviewApiStack', {
   table: dynamoDBStack.table,
   userPool: cognitoStack.userPool,
-});
-
-// Deploy CloudFront Stack for custom domain
-// Stack executes in us-east-1; certificate is provisioned cross-region (us-east-1) as required by CloudFront
-// Environment variables are configured separately to avoid cross-region references
-new CloudFrontStack(app, 'ParoviewCloudFrontStack', {
-  domainName: deployConfig.domainName,
-  certificateRegion: deployConfig.certificateRegion,
-  hostedZoneId: deployConfig.hostedZoneId,
-  hostedZoneName: deployConfig.hostedZoneName,
-  env: {
-    region: deployConfig.region,
-  },
 });
 
 // Deploy Amplify Stack (only if GitHub token is provided)

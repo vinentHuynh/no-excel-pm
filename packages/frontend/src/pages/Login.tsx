@@ -53,6 +53,7 @@ export default function LoginPage() {
     | 'resendSignUpCode'
     | 'forgotPassword'
     | 'confirmForgotPassword'
+    | 'checkAccountStatus'
     | null;
 
   const [authStep, setAuthStep] = useState<AuthStep>('signUp');
@@ -89,10 +90,11 @@ export default function LoginPage() {
     pendingAction === action;
 
   const submitOnEnter =
-    (action: () => void) => (event: KeyboardEvent<HTMLInputElement>) => {
+    (action: () => void | Promise<void>) =>
+    (event: KeyboardEvent<HTMLInputElement>) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        action();
+        void action();
       }
     };
 
@@ -117,7 +119,7 @@ export default function LoginPage() {
     setResetPasswordConfirm('');
   };
 
-  const handleEmailSubmit = (mode: 'signIn' | 'signUp') => {
+  const handleEmailSubmit = async (mode: 'signIn' | 'signUp') => {
     const normalizedEmail = email.trim().toLowerCase();
     const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -155,11 +157,52 @@ export default function LoginPage() {
     setResetPasswordConfirm('');
     if (mode === 'signIn') {
       setSignInPassword('');
+      setPendingAction('checkAccountStatus');
+      try {
+        const accountStatus = await checkAccountStatus(normalizedEmail);
+        setPendingAction(null);
+
+        if (accountStatus === 'not-found') {
+          setStatusMessage(
+            `We couldn't find an account for ${normalizedEmail}. Let's create one for you.`
+          );
+          setSignUpPassword('');
+          setSignUpPasswordConfirm('');
+          changeStep('signUp');
+          return;
+        }
+
+        if (accountStatus === 'unconfirmed') {
+          setPendingAction('resendSignUpCode');
+          try {
+            await resendSignUpCode({ username: normalizedEmail });
+          } catch (resendError) {
+            console.error('Failed to resend verification code', resendError);
+          } finally {
+            setPendingAction(null);
+          }
+
+          setStatusMessage(
+            'Confirm your account to finish signing in. We just sent you a new verification code.'
+          );
+          setSignUpCode('');
+          changeStep('confirmSignUp');
+          return;
+        }
+      } catch (checkError) {
+        console.error('Failed to check account status', checkError);
+        setPendingAction(null);
+        setApprovedEmail(null);
+        setError('We ran into a problem checking your account. Try again.');
+        return;
+      }
+
+      changeStep('signIn');
     } else {
       setSignUpPassword('');
       setSignUpPasswordConfirm('');
+      changeStep('signUp');
     }
-    changeStep(mode);
   };
 
   const handleSignInSubmit = async () => {
@@ -207,6 +250,14 @@ export default function LoginPage() {
         } catch (resendError) {
           console.error('Failed to resend verification code', resendError);
         }
+      } else if (isAmplifyError(err) && err.name === 'UserNotFoundException') {
+        // Drive users without existing accounts directly into the sign-up flow
+        setStatusMessage(
+          `We couldn't find an account for ${approvedEmail}. Let's create one for you.`
+        );
+        setSignUpPassword('');
+        setSignUpPasswordConfirm('');
+        changeStep('signUp');
       } else {
         console.error('Sign in failed', err);
         setAuthErrorMessage(getAmplifyErrorMessage(err, approvedEmail));
@@ -698,13 +749,18 @@ export default function LoginPage() {
               required
             />
 
-            <Button fullWidth onClick={() => handleEmailSubmit('signIn')}>
+            <Button
+              fullWidth
+              onClick={() => void handleEmailSubmit('signIn')}
+              loading={isActionLoading('checkAccountStatus')}
+              disabled={isActionLoading('checkAccountStatus')}
+            >
               Continue
             </Button>
 
             <Stack gap={2}>
               <Button variant='outline' size='md' component={Link} to='/demo'>
-                Explore interactive demo
+                Demo
               </Button>
               <Text size='xs' c='dimmed' ta='center'>
                 Takes 60 seconds — move work across stages and feel the flow.
@@ -808,4 +864,46 @@ function getAmplifyErrorMessage(error: unknown, email?: string): string {
   }
 
   return 'Something went wrong. Please try again.';
+}
+
+type AccountStatus = 'exists' | 'not-found' | 'unconfirmed';
+
+async function checkAccountStatus(email: string): Promise<AccountStatus> {
+  try {
+    await signIn({ username: email, password: generateTempPassword() });
+    return 'exists';
+  } catch (error) {
+    if (isAmplifyError(error)) {
+      switch (error.name) {
+        case 'UserNotFoundException':
+          return 'not-found';
+        case 'UserNotConfirmedException':
+          return 'unconfirmed';
+        case 'NotAuthorizedException':
+        case 'PasswordResetRequiredException':
+        case 'TooManyFailedAttemptsException':
+        case 'LimitExceededException':
+          return 'exists';
+        default:
+          throw error;
+      }
+    }
+
+    throw error;
+  }
+}
+
+function generateTempPassword(): string {
+  const cryptoObj =
+    typeof globalThis !== 'undefined'
+      ? (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+      : undefined;
+
+  if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+    return cryptoObj.randomUUID();
+  }
+
+  return (
+    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+  );
 }

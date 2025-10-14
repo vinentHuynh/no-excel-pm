@@ -32,11 +32,10 @@ const root = join(__dirname, '..');
 const backendDir = join(root, 'packages', 'backend');
 const frontendDir = join(root, 'packages', 'frontend');
 
-const DEFAULT_DOMAINS = 'paroview.com';
-const DEFAULT_DOMAIN_NAME = 'paroview.com';
+const FRONTEND_ENV_RELATIVE = 'packages/frontend/.env';
+const FRONTEND_ENV_PATH = join(root, FRONTEND_ENV_RELATIVE);
+const ENV_ALLOWED_DOMAINS_KEY = 'VITE_ALLOWED_EMAIL_DOMAINS';
 const DEFAULT_REGION = 'us-east-1';
-const DEFAULT_CERT_REGION = 'us-east-1';
-const DEFAULT_CLOUDFRONT_STACK = 'ParoviewCloudFrontStack';
 const BOOTSTRAP_STACK_NAME = process.env.CDK_TOOLKIT_STACK_NAME || 'CDKToolkit';
 const BOOTSTRAP_QUALIFIER = process.env.CDK_QUALIFIER || 'hnb659fds';
 const CONFIGURED_ACCOUNT_ID = process.env.CDK_ACCOUNT_ID;
@@ -81,10 +80,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     allowedEmailDomains: undefined,
     githubToken: undefined,
     skipBootstrap: false,
-    domainName: undefined,
     region: undefined,
-    certificateRegion: undefined,
-    cloudFrontStackName: undefined,
     mode: 'all',
   };
 
@@ -107,7 +103,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     }
 
     if (arg.startsWith('--allowed-email-domains=')) {
-      config.allowedEmailDomains = arg.split('=')[1] || DEFAULT_DOMAINS;
+      const value = arg.split('=')[1] || '';
+      config.allowedEmailDomains = value || undefined;
       continue;
     }
 
@@ -133,17 +130,6 @@ function parseArgs(argv = process.argv.slice(2)) {
       continue;
     }
 
-    if (arg.startsWith('--domain=')) {
-      config.domainName = arg.split('=')[1] || DEFAULT_DOMAIN_NAME;
-      continue;
-    }
-
-    if (arg === '--domain' || arg === '--domain-name') {
-      config.domainName = argv[i + 1];
-      i += 1;
-      continue;
-    }
-
     if (arg.startsWith('--region=')) {
       config.region = arg.split('=')[1] || DEFAULT_REGION;
       continue;
@@ -151,29 +137,6 @@ function parseArgs(argv = process.argv.slice(2)) {
 
     if (arg === '--region') {
       config.region = argv[i + 1];
-      i += 1;
-      continue;
-    }
-
-    if (arg.startsWith('--certificate-region=')) {
-      config.certificateRegion = arg.split('=')[1] || DEFAULT_CERT_REGION;
-      continue;
-    }
-
-    if (arg === '--certificate-region') {
-      config.certificateRegion = argv[i + 1];
-      i += 1;
-      continue;
-    }
-
-    if (arg.startsWith('--cloudfront-stack=')) {
-      config.cloudFrontStackName =
-        arg.split('=')[1] || DEFAULT_CLOUDFRONT_STACK;
-      continue;
-    }
-
-    if (arg === '--cloudfront-stack') {
-      config.cloudFrontStackName = argv[i + 1];
       i += 1;
       continue;
     }
@@ -190,14 +153,11 @@ function printHelp() {
   console.log(`Usage: node scripts/deploy-all.js [options]
 
 Options:
-  --allowed-email-domains <domains>  Comma separated business email domains (default: ${DEFAULT_DOMAINS})
-  --domain <domain>                  Domain name for CloudFront and Route53 (default: ${DEFAULT_DOMAIN_NAME})
+  --allowed-email-domains <domains>  Comma separated business email domains (default: value from ${ENV_ALLOWED_DOMAINS_KEY} in ${FRONTEND_ENV_RELATIVE})
   --region <region>                  Primary AWS region for stacks (default: ${DEFAULT_REGION})
-  --certificate-region <region>      Region for ACM certificates (default: ${DEFAULT_CERT_REGION})
-  --cloudfront-stack <name>          Override CloudFront stack name (default: ${DEFAULT_CLOUDFRONT_STACK})
   --github-token <token>             GitHub PAT to deploy Amplify stack (optional)
   --skip-bootstrap                   Skip CDK bootstrap steps (optional)
-  --frontend-only                    Build and publish frontend without touching backend stacks
+  --frontend-only                    Build the frontend without touching backend stacks
   --backend-only                     Deploy backend stacks (skips Amplify + frontend publish)
   -h, --help                         Show this help message
 `);
@@ -242,39 +202,90 @@ function toArray(value) {
   return [];
 }
 
-function createDeployConfig(options) {
+function parseEnvFile(raw) {
+  const result = {};
+
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (key.length > 0) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
+async function loadAllowedDomainsFromEnvFile(envPath = FRONTEND_ENV_PATH) {
+  try {
+    const raw = await readFile(envPath, 'utf8');
+    const envValues = parseEnvFile(raw);
+    const value = envValues[ENV_ALLOWED_DOMAINS_KEY];
+
+    if (!value) {
+      return [];
+    }
+
+    return value
+      .split(',')
+      .map((domain) => domain.trim())
+      .filter((domain) => domain.length > 0);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      console.warn(
+        `Warning: unable to read ${envPath}; ${ENV_ALLOWED_DOMAINS_KEY} not found.`
+      );
+      console.warn(error instanceof Error ? error.message : error);
+    }
+
+    return [];
+  }
+}
+
+async function createDeployConfig(options) {
   const envConfig = loadDeployConfigFromEnv();
 
-  const cliDomains = toArray(options.allowedEmailDomains).map((domain) =>
-    domain.trim()
-  );
-  const envDomains = toArray(envConfig.allowedEmailDomains).map((domain) =>
-    domain.trim()
-  );
+  const cliDomains = toArray(options.allowedEmailDomains)
+    .map((domain) => domain.trim())
+    .filter((domain) => domain.length > 0);
+  const envDomains = toArray(envConfig.allowedEmailDomains)
+    .map((domain) => domain.trim())
+    .filter((domain) => domain.length > 0);
 
-  const resolvedDomains = cliDomains.length > 0 ? cliDomains : envDomains;
+  let resolvedDomains = cliDomains.length > 0 ? cliDomains : envDomains;
+
+  if (resolvedDomains.length === 0) {
+    resolvedDomains = await loadAllowedDomainsFromEnvFile();
+  }
 
   const normalisedDomains = Array.from(
     new Set(
-      (resolvedDomains.length > 0 ? resolvedDomains : [DEFAULT_DOMAINS])
+      resolvedDomains
         .map((domain) => domain.toLowerCase())
         .filter((domain) => domain.length > 0)
     )
   );
 
   if (normalisedDomains.length === 0) {
-    normalisedDomains.push(DEFAULT_DOMAINS);
+    throw new Error(
+      `No allowed email domains configured. Provide --allowed-email-domains or set ${ENV_ALLOWED_DOMAINS_KEY} in ${FRONTEND_ENV_RELATIVE}.`
+    );
   }
 
   return {
     allowedEmailDomains: normalisedDomains,
-    domainName:
-      options.domainName || envConfig.domainName || DEFAULT_DOMAIN_NAME,
     region: options.region || envConfig.region || DEFAULT_REGION,
-    certificateRegion:
-      options.certificateRegion ||
-      envConfig.certificateRegion ||
-      DEFAULT_CERT_REGION,
     githubToken:
       options.githubToken || envConfig.githubToken || process.env.GITHUB_TOKEN,
   };
@@ -357,103 +368,6 @@ async function generateFrontendEnvFile(deployConfig, options = {}) {
   await writeFile(`${envPath}`, `${envContents}\n`, 'utf8');
 
   logInfo(`Frontend environment written to ${envPath}`);
-}
-
-async function fetchStackOutputs(stackName, region) {
-  const cf = new CloudFormationClient({ region });
-  const response = await cf.send(
-    new DescribeStacksCommand({ StackName: stackName })
-  );
-  const stack = response.Stacks?.[0];
-
-  if (!stack) {
-    throw new Error(
-      `Stack ${stackName} not found in ${region}. Deploy CloudFront stack first.`
-    );
-  }
-
-  const outputs = {};
-  for (const output of stack.Outputs || []) {
-    if (output.OutputKey) {
-      outputs[output.OutputKey] = output.OutputValue;
-    }
-  }
-
-  return outputs;
-}
-
-async function deployFrontendAssets({
-  deployConfig,
-  stackName = DEFAULT_CLOUDFRONT_STACK,
-  env,
-}) {
-  const outputs = await fetchStackOutputs(stackName, deployConfig.region);
-  const bucketName = outputs.BucketName;
-
-  if (!bucketName) {
-    throw new Error(
-      'Unable to resolve frontend bucket name from stack outputs or DEPLOY_CONFIG.'
-    );
-  }
-
-  const distributionId = outputs.DistributionId;
-  const distDir = join(frontendDir, 'dist');
-
-  logInfo(`Uploading dist assets to s3://${bucketName}`);
-  await run(
-    'aws',
-    [
-      's3',
-      'sync',
-      distDir,
-      `s3://${bucketName}`,
-      '--delete',
-      '--cache-control',
-      'public, max-age=31536000, immutable',
-      '--exclude',
-      'index.html',
-    ],
-    {
-      env,
-    }
-  );
-
-  await run(
-    'aws',
-    [
-      's3',
-      'cp',
-      join(distDir, 'index.html'),
-      `s3://${bucketName}/index.html`,
-      '--cache-control',
-      'public, max-age=0, must-revalidate',
-      '--content-type',
-      'text/html',
-    ],
-    {
-      env,
-    }
-  );
-
-  if (distributionId) {
-    logInfo(`Creating CloudFront invalidation for ${distributionId}`);
-    await run(
-      'aws',
-      [
-        'cloudfront',
-        'create-invalidation',
-        '--distribution-id',
-        distributionId,
-        '--paths',
-        '/*',
-      ],
-      {
-        env,
-      }
-    );
-  } else {
-    logInfo('No CloudFront distribution ID found; skipping invalidation.');
-  }
 }
 
 async function emptyBootstrapBucket(region, accountId) {
@@ -783,11 +697,9 @@ async function main() {
   await ensurePnpm();
 
   const options = parseArgs();
-  const deployConfig = createDeployConfig(options);
+  const deployConfig = await createDeployConfig(options);
   const envForDeploy = buildEnv(deployConfig);
   const accountId = await resolveAccountId();
-  const cloudFrontStackName =
-    options.cloudFrontStackName || DEFAULT_CLOUDFRONT_STACK;
   const shouldDeployAmplify =
     options.mode === 'all' && Boolean(deployConfig.githubToken);
 
@@ -797,13 +709,6 @@ async function main() {
   if (options.mode !== 'frontend') {
     if (!options.skipBootstrap) {
       await ensureBootstrap(deployConfig.region, accountId, envForDeploy);
-      if (deployConfig.certificateRegion !== deployConfig.region) {
-        await ensureBootstrap(
-          deployConfig.certificateRegion,
-          accountId,
-          envForDeploy
-        );
-      }
     } else {
       logStep('Skipping CDK bootstrap');
     }
@@ -850,24 +755,6 @@ async function main() {
       }
     );
 
-    logStep(`Deploying ${cloudFrontStackName}`);
-    await run(
-      PNPM,
-      [
-        'cdk',
-        'deploy',
-        cloudFrontStackName,
-        '--outputs-file',
-        'outputs.json',
-        '--require-approval',
-        'never',
-      ],
-      {
-        cwd: backendDir,
-        env: envForDeploy,
-      }
-    );
-
     if (shouldDeployAmplify) {
       logStep('Deploying ParoviewAmplifyStack');
       await run(
@@ -899,23 +786,14 @@ async function main() {
 
     logStep('Building frontend');
     await run(PNPM, ['build'], { cwd: frontendDir, env: envForDeploy });
-
-    logStep('Deploying frontend assets');
-    await deployFrontendAssets({
-      deployConfig,
-      stackName: cloudFrontStackName,
-      env: envForDeploy,
-    });
+    logStep('Amplify manages frontend hosting; no asset upload required.');
   } else {
     logStep('Backend-only mode: skipping frontend build and publish.');
   }
 
   console.log('\n✅ Deployment complete.');
-  console.log(
-    `   • Verify ACM certificate status in ${deployConfig.certificateRegion}`
-  );
-  console.log('   • Confirm Route53 nameservers at your registrar');
-  console.log('   • Visit the CloudFront URL from stack outputs');
+  console.log('   • Amplify will publish the latest frontend build automatically');
+  console.log('   • Confirm Amplify custom domains and certificates in the console if configured');
 }
 
 main().catch((error) => {

@@ -157,7 +157,6 @@ export default function UsersPage() {
           <Group gap='md' align='flex-end' wrap='wrap'>
             <TextInput
               label='Name'
-              placeholder='Taylor Nguyen'
               value={formValues.name}
               onChange={(event) => {
                 const value = event.currentTarget.value;
@@ -170,7 +169,6 @@ export default function UsersPage() {
             />
             <TextInput
               label='Business email'
-              placeholder='you@company.com'
               value={formValues.email}
               onChange={(event) => {
                 const value = event.currentTarget.value;

@@ -3,10 +3,6 @@
   "context": {
     "aws-cdk:enableDiffNoFail": "true",
     "deployConfig": {
-      "domainName": "paroview.com",
-      "hostedZoneId": "Z06182603FONI2LVCGSHD",
-      "hostedZoneName": "paroview.com",
-      "allowedEmailDomains": ["paroview.com", "spectrumvoip.com"],
       "allowedEmailOverrides": ["admin@spectrumvoip.com"]
     }
   }

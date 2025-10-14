@@ -5,7 +5,6 @@
     "dev": "pnpm --parallel --filter \"./packages/**\" dev",
     "deploy:backend": "node scripts/deploy-all.js --backend-only",
     "deploy:frontend": "node scripts/deploy-all.js --frontend-only",
-    "deploy:cloudfront": "pnpm --filter \"./packages/backend\" cdk deploy ParoviewCloudFrontStack --outputs-file outputs.json",
     "deploy:all": "node scripts/deploy-all.js"
   },
   "dependencies": {
