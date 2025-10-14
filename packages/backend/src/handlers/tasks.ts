@@ -10,8 +10,20 @@ import {
   updateTask,
   deleteTask,
   addActivity,
+  getUsers,
+  getUser,
+  createUser,
+  updateUser,
+  deleteUser,
 } from './db';
-import { Task, CreateTaskRequest, UpdateTaskRequest } from '@paroview/shared';
+import {
+  Task,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CreateUserRequest,
+  UpdateUserRequest,
+  extractDomain,
+} from '@paroview/shared';
 
 // Helper to extract user info from Cognito authorizer
 function getUserFromEvent(event: APIGatewayProxyEvent): {
@@ -297,5 +309,136 @@ export async function unlinkTaskHandler(
   } catch (error) {
     console.error('Error unlinking task:', error);
     return createResponse(500, { error: 'Failed to unlink task' });
+  }
+}
+
+// User handlers
+export async function getUsersHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const users = await getUsers(domain);
+
+    return createResponse(200, { users });
+  } catch (error) {
+    console.error('Error getting users:', error);
+    return createResponse(500, { error: 'Failed to get users' });
+  }
+}
+
+export async function getUserHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const userId = event.pathParameters?.id;
+
+    if (!userId) {
+      return createResponse(400, { error: 'User ID is required' });
+    }
+
+    const user = await getUser(domain, userId);
+
+    if (!user) {
+      return createResponse(404, { error: 'User not found' });
+    }
+
+    return createResponse(200, { user });
+  } catch (error) {
+    console.error('Error getting user:', error);
+    return createResponse(500, { error: 'Failed to get user' });
+  }
+}
+
+export async function createUserHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+
+    if (!event.body) {
+      return createResponse(400, { error: 'Request body is required' });
+    }
+
+    const body: CreateUserRequest = JSON.parse(event.body);
+
+    if (!body.email || !body.name) {
+      return createResponse(400, { error: 'Email and name are required' });
+    }
+
+    // Validate that the user's email domain matches the workspace domain
+    const userEmailDomain = extractDomain(body.email);
+    const workspaceDomain = extractDomain(domain + '@' + domain);
+
+    if (
+      userEmailDomain !== workspaceDomain &&
+      !body.email.includes('@' + domain)
+    ) {
+      return createResponse(400, {
+        error: `User email must be from the same domain as your workspace`,
+      });
+    }
+
+    const user = await createUser(domain, {
+      email: body.email,
+      name: body.name,
+      role: body.role || 'member',
+    });
+
+    return createResponse(201, { user });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    const message =
+      error instanceof Error ? error.message : 'Failed to create user';
+    return createResponse(500, { error: message });
+  }
+}
+
+export async function updateUserHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const userId = event.pathParameters?.id;
+
+    if (!userId) {
+      return createResponse(400, { error: 'User ID is required' });
+    }
+
+    if (!event.body) {
+      return createResponse(400, { error: 'Request body is required' });
+    }
+
+    const body: UpdateUserRequest = JSON.parse(event.body);
+
+    const user = await updateUser(domain, userId, body);
+
+    return createResponse(200, { user });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    const message =
+      error instanceof Error ? error.message : 'Failed to update user';
+    return createResponse(500, { error: message });
+  }
+}
+
+export async function deleteUserHandler(
+  event: APIGatewayProxyEvent
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const userId = event.pathParameters?.id;
+
+    if (!userId) {
+      return createResponse(400, { error: 'User ID is required' });
+    }
+
+    await deleteUser(domain, userId);
+
+    return createResponse(200, { success: true });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return createResponse(500, { error: 'Failed to delete user' });
   }
 }

@@ -1,91 +1,129 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ActionIcon,
   Box,
   Button,
   Group,
   Paper,
-  Select,
   Stack,
   Table,
   Text,
   TextInput,
   Title,
+  Alert,
+  Loader,
+  Center,
+  Select,
 } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { IconTrash, IconAlertCircle } from '@tabler/icons-react';
+import { apiClient } from '../api/client';
+import type { UserProfile } from '../../../shared/types';
 
-interface UserRecord {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Owner' | 'Admin' | 'Member';
-}
-
-const roleOptions: Array<UserRecord['role']> = ['Owner', 'Admin', 'Member'];
+type UserRole = 'admin' | 'member';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserRecord[]>([
-    {
-      id: '1',
-      name: 'Taylor Nguyen',
-      email: 'taylor@spectrumvoip.com',
-      role: 'Owner',
-    },
-    {
-      id: '2',
-      name: 'Sam Patel',
-      email: 'sam@spectrumvoip.com',
-      role: 'Admin',
-    },
-  ]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const [formValues, setFormValues] = useState({
     name: '',
     email: '',
-    role: 'Member' as UserRecord['role'],
+    role: 'member' as UserRole,
   });
 
-  const addUser = () => {
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.getUsers();
+      setUsers(response.users);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addUser = async () => {
     const trimmedName = formValues.name.trim();
     const trimmedEmail = formValues.email.trim().toLowerCase();
 
     if (!trimmedName || !trimmedEmail) {
+      setError('Name and email are required');
       return;
     }
 
     const exists = users.some((user) => user.email === trimmedEmail);
     if (exists) {
+      setError('A user with this email already exists');
       return;
     }
 
-    setUsers((current) => [
-      ...current,
-      {
-        id: crypto.randomUUID(),
+    try {
+      setSubmitting(true);
+      setError(null);
+      const response = await apiClient.createUser({
         name: trimmedName,
         email: trimmedEmail,
         role: formValues.role,
-      },
-    ]);
+      });
 
-    setFormValues({ name: '', email: '', role: 'Member' });
+      setUsers((current) => [...current, response.user]);
+      setFormValues({ name: '', email: '', role: 'member' });
+    } catch (err) {
+      console.error('Error adding user:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add user');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const removeUser = (id: string) => {
-    setUsers((current) => current.filter((user) => user.id !== id));
+  const removeUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to remove this user?')) {
+      return;
+    }
+
+    try {
+      setError(null);
+      await apiClient.deleteUser(userId);
+      setUsers((current) => current.filter((user) => user.userId !== userId));
+    } catch (err) {
+      console.error('Error removing user:', err);
+      setError(err instanceof Error ? err.message : 'Failed to remove user');
+    }
   };
+
+  if (loading) {
+    return (
+      <Center h={400}>
+        <Stack align='center' gap='xs'>
+          <Loader />
+          <Text size='sm' c='dimmed'>
+            Loading users...
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
 
   const userRows = users.map((user) => (
-    <Table.Tr key={user.id}>
+    <Table.Tr key={user.userId}>
       <Table.Td>{user.name}</Table.Td>
       <Table.Td>{user.email}</Table.Td>
-      <Table.Td>{user.role}</Table.Td>
+      <Table.Td style={{ textTransform: 'capitalize' }}>{user.role}</Table.Td>
       <Table.Td width={48}>
         <ActionIcon
           variant='subtle'
           color='red'
           aria-label={`Remove ${user.name}`}
-          onClick={() => removeUser(user.id)}
+          onClick={() => removeUser(user.userId)}
         >
           <IconTrash size={16} stroke={1.5} />
         </ActionIcon>
@@ -97,9 +135,21 @@ export default function UsersPage() {
     <Stack gap='lg'>
       <Title order={1}>Workspace users</Title>
       <Text size='sm' c='dimmed'>
-        Manage who can access Paroview. This demo view stores changes locally;
-        connect it to your backend or Cognito APIs to persist updates.
+        Manage who can access your workspace. Users are stored in DynamoDB and
+        isolated by domain.
       </Text>
+
+      {error && (
+        <Alert
+          icon={<IconAlertCircle size={16} />}
+          title='Error'
+          color='red'
+          withCloseButton
+          onClose={() => setError(null)}
+        >
+          {error}
+        </Alert>
+      )}
 
       <Paper withBorder p='md' radius='md'>
         <Stack gap='md'>
@@ -109,39 +159,48 @@ export default function UsersPage() {
               label='Name'
               placeholder='Taylor Nguyen'
               value={formValues.name}
-              onChange={(event) =>
+              onChange={(event) => {
+                const value = event.currentTarget.value;
                 setFormValues((current) => ({
                   ...current,
-                  name: event.currentTarget.value,
-                }))
-              }
+                  name: value,
+                }));
+              }}
               style={{ flex: 1, minWidth: 200 }}
             />
             <TextInput
               label='Business email'
               placeholder='you@company.com'
               value={formValues.email}
-              onChange={(event) =>
+              onChange={(event) => {
+                const value = event.currentTarget.value;
                 setFormValues((current) => ({
                   ...current,
-                  email: event.currentTarget.value,
-                }))
-              }
+                  email: value,
+                }));
+              }}
               style={{ flex: 1, minWidth: 240 }}
             />
             <Select
               label='Role'
-              data={roleOptions}
+              data={[
+                { value: 'admin', label: 'Admin' },
+                { value: 'member', label: 'Member' },
+              ]}
               value={formValues.role}
-              onChange={(value) =>
-                setFormValues((current) => ({
-                  ...current,
-                  role: (value as UserRecord['role']) ?? current.role,
-                }))
-              }
+              onChange={(value) => {
+                if (value === 'admin' || value === 'member') {
+                  setFormValues((current) => ({
+                    ...current,
+                    role: value,
+                  }));
+                }
+              }}
               style={{ width: 180 }}
             />
-            <Button onClick={addUser}>Add user</Button>
+            <Button onClick={addUser} disabled={submitting}>
+              {submitting ? 'Adding...' : 'Add user'}
+            </Button>
           </Group>
         </Stack>
       </Paper>

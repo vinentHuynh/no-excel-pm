@@ -122,6 +122,34 @@ export interface DeleteTaskResponse {
   success: boolean;
 }
 
+// User API Request/Response types
+export interface CreateUserRequest {
+  email: string;
+  name: string;
+  role: 'admin' | 'member';
+}
+
+export interface UpdateUserRequest {
+  name?: string;
+  role?: 'admin' | 'member';
+}
+
+export interface GetUsersResponse {
+  users: UserProfile[];
+}
+
+export interface CreateUserResponse {
+  user: UserProfile;
+}
+
+export interface UpdateUserResponse {
+  user: UserProfile;
+}
+
+export interface DeleteUserResponse {
+  success: boolean;
+}
+
 // Helper function to build DynamoDB keys
 export function buildTaskPK(domain: string, taskId: string): string {
   return `DOMAIN#${domain}#TASK#${taskId}`;
@@ -141,4 +169,10 @@ export function buildMetaSK(): string {
 
 export function buildDomainGSI1PK(domain: string, entityType: string): string {
   return `DOMAIN#${domain}#TYPE#${entityType}`;
+}
+
+// Helper to extract email domain
+export function extractDomain(email: string): string {
+  const parts = email.split('@');
+  return parts.length === 2 ? parts[1].toLowerCase() : '';
 }

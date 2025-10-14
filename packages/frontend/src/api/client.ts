@@ -3,6 +3,9 @@ import type {
   Task,
   CreateTaskRequest,
   UpdateTaskRequest,
+  UserProfile,
+  CreateUserRequest,
+  UpdateUserRequest,
 } from '../../../shared/types';
 
 // Get API endpoint from environment variable
@@ -112,6 +115,38 @@ class ApiClient {
         method: 'DELETE',
       }
     );
+  }
+
+  // Users endpoints
+  async getUsers(): Promise<{ users: UserProfile[] }> {
+    return this.request<{ users: UserProfile[] }>('/users');
+  }
+
+  async getUser(userId: string): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>(`/users/${userId}`);
+  }
+
+  async createUser(data: CreateUserRequest): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(
+    userId: string,
+    data: UpdateUserRequest
+  ): Promise<{ user: UserProfile }> {
+    return this.request<{ user: UserProfile }>(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(userId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/users/${userId}`, {
+      method: 'DELETE',
+    });
   }
 }
 

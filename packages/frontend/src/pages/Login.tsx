@@ -4,14 +4,16 @@ import {
   Button,
   Center,
   Group,
+  Loader,
   Paper,
   PasswordInput,
   Stack,
   Text,
   TextInput,
   Title,
+  useComputedColorScheme,
 } from '@mantine/core';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import {
   confirmResetPassword,
@@ -20,31 +22,22 @@ import {
   resetPassword,
   signIn,
   signUp,
+  getCurrentUser,
+  fetchAuthSession,
 } from 'aws-amplify/auth';
 import { Link, Navigate } from 'react-router-dom';
-import {
-  allowedEmailDomains,
-  allowedEmailOverrides,
-  getEmailDomain,
-  isAllowedBusinessEmail,
-} from '../cognito';
+import { getEmailDomain, isAllowedBusinessEmail } from '../cognito';
 
 export default function LoginPage() {
-  const { authStatus } = useAuthenticator((context) => [context.authStatus]);
+  const { authStatus, user } = useAuthenticator((context) => [
+    context.authStatus,
+    context.user,
+  ]);
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [emailTouched, setEmailTouched] = useState(false);
   const [approvedEmail, setApprovedEmail] = useState<string | null>(null);
   const isEmailApproved = Boolean(approvedEmail);
-
-  const allowedDomainSet = useMemo(
-    () => new Set<string>(allowedEmailDomains),
-    []
-  );
-  const allowedEmailOverrideSet = useMemo(
-    () => new Set<string>(allowedEmailOverrides),
-    []
-  );
 
   type AuthStep =
     | 'signIn'
@@ -74,6 +67,23 @@ export default function LoginPage() {
   const [resetCode, setResetCode] = useState('');
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const computedColorScheme = useComputedColorScheme('dark');
+  const backgroundColor =
+    computedColorScheme === 'dark'
+      ? 'var(--mantine-color-dark-7)'
+      : 'var(--mantine-color-gray-1)';
+
+  useEffect(() => {
+    console.log('Login page - auth state changed:', {
+      authStatus,
+      hasUser: Boolean(user),
+    });
+
+    // If authenticated, redirect even if user object hasn't loaded yet
+    if (authStatus === 'authenticated') {
+      console.log('Auth status is authenticated, redirecting...');
+    }
+  }, [authStatus, user]);
 
   const isActionLoading = (action: Exclude<PendingAction, null>) =>
     pendingAction === action;
@@ -168,6 +178,23 @@ export default function LoginPage() {
 
     try {
       await signIn({ username: approvedEmail, password: signInPassword });
+      console.log(
+        'Sign in successful, fetching auth session to trigger context update...'
+      );
+
+      // Force refresh the auth session to trigger Hub events and update Authenticator context
+      try {
+        await fetchAuthSession({ forceRefresh: true });
+        await getCurrentUser();
+        console.log('Auth session refreshed and user fetched');
+
+        // Give the Authenticator context a moment to update
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (userErr) {
+        console.error('Failed to refresh session after sign-in', userErr);
+      }
+
+      // Don't navigate here - let the useAuthenticator hook update and trigger the redirect
     } catch (err) {
       if (isAmplifyError(err) && err.name === 'UserNotConfirmedException') {
         setStatusMessage(
@@ -613,13 +640,28 @@ export default function LoginPage() {
     }
   };
 
+  // Redirect if authenticated, regardless of whether user object has loaded
   if (authStatus === 'authenticated') {
+    console.log('Rendering Navigate component to redirect to home');
     return <Navigate to='/' replace />;
+  }
+
+  if (authStatus === 'configuring') {
+    return (
+      <Center h='100vh' bg={backgroundColor}>
+        <Stack align='center' gap='xs'>
+          <Loader />
+          <Text size='sm' c='dimmed'>
+            Loading your session…
+          </Text>
+        </Stack>
+      </Center>
+    );
   }
 
   if (!isEmailApproved) {
     return (
-      <Center h='100vh' bg='var(--mantine-color-gray-1)'>
+      <Center h='100vh' bg={backgroundColor}>
         <Paper maw={420} w='100%' p='xl' radius='md' shadow='md' withBorder>
           <Stack gap='lg'>
             <Stack gap='xs'>
@@ -627,15 +669,8 @@ export default function LoginPage() {
                 Sign in to Paroview
               </Title>
               <Text ta='center' c='dimmed'>
-                We currently support business domains:{' '}
-                {Array.from(allowedDomainSet).join(', ')}
+                Use your business email to continue.
               </Text>
-              {allowedEmailOverrideSet.size > 0 ? (
-                <Text ta='center' size='sm' c='dimmed'>
-                  Direct access available for:{' '}
-                  {Array.from(allowedEmailOverrideSet).join(', ')}
-                </Text>
-              ) : null}
             </Stack>
 
             {error ? (
@@ -684,7 +719,7 @@ export default function LoginPage() {
   const { title, description } = stepCopy;
 
   return (
-    <Center h='100vh' bg='var(--mantine-color-gray-1)'>
+    <Center h='100vh' bg={backgroundColor}>
       <Paper maw={420} w='100%' p='xl' radius='md' shadow='md' withBorder>
         <Stack gap='lg'>
           <Stack gap='xs' align='center'>
@@ -736,6 +771,9 @@ function isAmplifyError(error: unknown): error is AmplifyError {
 
 function getAmplifyErrorMessage(error: unknown, email?: string): string {
   if (isAmplifyError(error)) {
+    const normalizedMessage =
+      typeof error.message === 'string' ? error.message.toLowerCase() : '';
+
     switch (error.name) {
       case 'UserNotFoundException':
         return email
@@ -756,6 +794,14 @@ function getAmplifyErrorMessage(error: unknown, email?: string): string {
         return 'Too many attempts. Please wait a moment and try again.';
       case 'InvalidPasswordException':
         return 'Your password does not meet the complexity requirements.';
+      case 'InvalidStateException':
+        if (
+          normalizedMessage.includes('already') &&
+          normalizedMessage.includes('signed in user')
+        ) {
+          return 'We are finishing sign out from your last session. Try again in a moment.';
+        }
+        return 'We ran into an unexpected authentication state. Please try again.';
       default:
         return error.message || 'Something went wrong. Please try again.';
     }

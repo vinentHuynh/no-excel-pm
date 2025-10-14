@@ -20,7 +20,9 @@ import {
   Divider,
   Loader,
   Center,
+  ActionIcon,
 } from '@mantine/core';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { apiClient } from '../api/client';
 import { useDisclosure } from '@mantine/hooks';
@@ -167,6 +169,15 @@ function SortableTaskCard({
                 {task.assignedTo}
               </Badge>
             )}
+            <ActionIcon
+              variant='subtle'
+              color='gray'
+              size='sm'
+              onClick={handleCardClick}
+              style={{ cursor: 'pointer' }}
+            >
+              <IconChevronRight size={16} />
+            </ActionIcon>
           </Group>
         </Group>
       </Box>
@@ -338,8 +349,41 @@ export default function SprintPage({
     (demoMode ? 'Demo User' : 'User');
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<Array<{ value: string; label: string }>>(
+    []
+  );
   const [loading, setLoading] = useState(!demoMode);
   const [error, setError] = useState<string | null>(null);
+
+  // Load users from API
+  const loadUsers = useCallback(async () => {
+    if (demoMode) {
+      setUsers([
+        { value: '', label: 'Unassigned' },
+        { value: 'John', label: 'John' },
+        { value: 'Sarah', label: 'Sarah' },
+        { value: 'Mike', label: 'Mike' },
+        { value: 'Emily', label: 'Emily' },
+      ]);
+      return;
+    }
+
+    try {
+      const response = await apiClient.getUsers();
+      const userOptions = [
+        { value: '', label: 'Unassigned' },
+        ...response.users.map((user) => ({
+          value: user.name,
+          label: `${user.name} (${user.email})`,
+        })),
+      ];
+      setUsers(userOptions);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      // Fallback to empty list if users can't be loaded
+      setUsers([{ value: '', label: 'Unassigned' }]);
+    }
+  }, [demoMode]);
 
   // Load tasks from API or demo data on mount/when mode changes
   const loadTasks = useCallback(async () => {
@@ -366,8 +410,9 @@ export default function SprintPage({
   }, [demoMode, demoTaskSource]);
 
   useEffect(() => {
+    loadUsers();
     loadTasks();
-  }, [loadTasks]);
+  }, [loadUsers, loadTasks]);
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [opened, { open, close }] = useDisclosure(false);
@@ -377,6 +422,7 @@ export default function SprintPage({
   const [newTaskHoursExpected, setNewTaskHoursExpected] = useState<number>(0);
   const [newTaskHoursSpent, setNewTaskHoursSpent] = useState<number>(0);
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string>('');
+  const [addingTask, setAddingTask] = useState(false);
 
   // Task details modal state
   const [detailsOpened, { open: openDetails, close: closeDetails }] =
@@ -474,25 +520,80 @@ export default function SprintPage({
     // If status changed, update it and log activity
     if (activeTask.status !== newStatus) {
       console.log('Status changed from', activeTask.status, 'to', newStatus);
-      setTasks((tasks) => {
-        const updatedTasks = tasks.map((task) => {
-          if (task.id === activeTaskId) {
-            const updatedTask = addActivity(
-              { ...task, status: newStatus },
-              'status_change',
-              `Status changed from ${activeTask.status} to ${newStatus}`,
-              {
-                oldValue: activeTask.status,
-                newValue: newStatus,
-                fieldName: 'status',
-              }
+
+      // Update task with new status
+      const updatedTask = { ...activeTask, status: newStatus };
+
+      // Optimistically update UI immediately for fluid experience
+      setTasks((tasks) =>
+        tasks.map((task) => (task.id === activeTaskId ? updatedTask : task))
+      );
+
+      // Save to DynamoDB in the background if not in demo mode
+      if (!demoMode) {
+        // Async update without blocking UI
+        (async () => {
+          try {
+            const updateRequest: UpdateTaskRequest = {
+              title: updatedTask.title,
+              description: updatedTask.description,
+              status: updatedTask.status,
+              assignedTo: updatedTask.assignedTo,
+              hoursSpent: updatedTask.hoursSpent,
+              hoursExpected: updatedTask.hoursExpected,
+            };
+
+            const response = await apiClient.updateTask(
+              updatedTask.id,
+              updateRequest
             );
-            return updatedTask;
+            const apiTask = response.task;
+            const updatedTaskFromApi = convertApiTask(apiTask);
+
+            // Update with server response (includes activity logs)
+            setTasks((tasks) =>
+              tasks.map((task) =>
+                task.id === updatedTaskFromApi.id ? updatedTaskFromApi : task
+              )
+            );
+
+            // Update selected task if it's the one being dragged
+            if (selectedTask?.id === updatedTaskFromApi.id) {
+              setSelectedTask(updatedTaskFromApi);
+            }
+          } catch (error) {
+            console.error('Failed to update task status:', error);
+            // Revert to original status on error
+            setTasks((tasks) =>
+              tasks.map((task) =>
+                task.id === activeTaskId ? activeTask : task
+              )
+            );
+            alert('Failed to update task status. Please try again.');
           }
-          return task;
+        })();
+      } else {
+        // Demo mode: add activity to local state
+        setTasks((tasks) => {
+          const updatedTasks = tasks.map((task) => {
+            if (task.id === activeTaskId) {
+              const taskWithActivity = addActivity(
+                { ...task, status: newStatus },
+                'status_change',
+                `Status changed from ${activeTask.status} to ${newStatus}`,
+                {
+                  oldValue: activeTask.status,
+                  newValue: newStatus,
+                  fieldName: 'status',
+                }
+              );
+              return taskWithActivity;
+            }
+            return task;
+          });
+          return updatedTasks;
         });
-        return updatedTasks;
-      });
+      }
     } else {
       // Same column, just reordering
       const overTask = tasks.find((t) => t.id === overId);
@@ -549,6 +650,7 @@ export default function SprintPage({
       return;
     }
 
+    setAddingTask(true);
     try {
       const response = await apiClient.createTask({
         title: newTaskTitle,
@@ -571,6 +673,8 @@ export default function SprintPage({
     } catch (err) {
       console.error('Error creating task:', err);
       alert('Failed to create task. Please try again.');
+    } finally {
+      setAddingTask(false);
     }
   };
 
@@ -734,12 +838,26 @@ export default function SprintPage({
       return;
     }
 
+    // Store the task in case we need to restore it on error
+    const taskToDelete = tasks.find((task) => task.id === id);
+    if (!taskToDelete) return;
+
+    // Optimistically remove from UI immediately for responsive feel
+    setTasks(tasks.filter((task) => task.id !== id));
+    if (selectedTask?.id === id) {
+      setSelectedTask(null);
+      closeDetails();
+    }
+
+    // Delete from database in the background
     try {
       await apiClient.deleteTask(id);
-      setTasks(tasks.filter((task) => task.id !== id));
+      // Successfully deleted from database
     } catch (err) {
       console.error('Error deleting task:', err);
-      alert('Failed to delete task. Please try again.');
+      // Restore the task on error
+      setTasks((currentTasks) => [...currentTasks, taskToDelete]);
+      alert('Failed to delete task. The task has been restored.');
     }
   };
 
@@ -873,13 +991,8 @@ export default function SprintPage({
             placeholder='Select a team member'
             value={newTaskAssignedTo}
             onChange={(value) => setNewTaskAssignedTo(value || '')}
-            data={[
-              { value: '', label: 'Unassigned' },
-              { value: 'John', label: 'John' },
-              { value: 'Sarah', label: 'Sarah' },
-              { value: 'Mike', label: 'Mike' },
-              { value: 'Emily', label: 'Emily' },
-            ]}
+            data={users}
+            searchable
           />
 
           <Select
@@ -894,10 +1007,12 @@ export default function SprintPage({
           />
 
           <Group justify='flex-end' mt='md'>
-            <Button variant='subtle' onClick={close}>
+            <Button variant='subtle' onClick={close} disabled={addingTask}>
               Cancel
             </Button>
-            <Button onClick={handleAddTask}>Add Task</Button>
+            <Button onClick={handleAddTask} loading={addingTask}>
+              Add Task
+            </Button>
           </Group>
         </Stack>
       </Modal>
@@ -983,13 +1098,8 @@ export default function SprintPage({
                         assignedTo: value || '',
                       })
                     }
-                    data={[
-                      { value: '', label: 'Unassigned' },
-                      { value: 'John', label: 'John' },
-                      { value: 'Sarah', label: 'Sarah' },
-                      { value: 'Mike', label: 'Mike' },
-                      { value: 'Emily', label: 'Emily' },
-                    ]}
+                    data={users}
+                    searchable
                   />
 
                   {/* Status */}
