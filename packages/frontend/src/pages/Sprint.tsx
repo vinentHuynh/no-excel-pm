@@ -899,7 +899,7 @@ export default function SprintPage({
   return (
     <Box p='md'>
       <Group justify='space-between' mb='xl'>
-        <Title order={2}>Sprint Board</Title>
+        <Title order={2}>Project Board</Title>
         <Button onClick={() => openAddTaskModal('backlog')}>Add Task</Button>
       </Group>
 

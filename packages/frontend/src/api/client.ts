@@ -3,6 +3,9 @@ import type {
   Task,
   CreateTaskRequest,
   UpdateTaskRequest,
+  Ticket,
+  CreateTicketRequest,
+  UpdateTicketRequest,
   UserProfile,
   CreateUserRequest,
   UpdateUserRequest,
@@ -115,6 +118,38 @@ class ApiClient {
         method: 'DELETE',
       }
     );
+  }
+
+  // Tickets endpoints
+  async getTickets(): Promise<{ tickets: Ticket[] }> {
+    return this.request<{ tickets: Ticket[] }>('/tickets');
+  }
+
+  async getTicket(ticketId: string): Promise<{ ticket: Ticket }> {
+    return this.request<{ ticket: Ticket }>(`/tickets/${ticketId}`);
+  }
+
+  async createTicket(data: CreateTicketRequest): Promise<{ ticket: Ticket }> {
+    return this.request<{ ticket: Ticket }>('/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTicket(
+    ticketId: string,
+    data: UpdateTicketRequest
+  ): Promise<{ ticket: Ticket }> {
+    return this.request<{ ticket: Ticket }>(`/tickets/${ticketId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTicket(ticketId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/tickets/${ticketId}`, {
+      method: 'DELETE',
+    });
   }
 
   // Users endpoints

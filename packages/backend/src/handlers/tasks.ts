@@ -9,6 +9,11 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  getTickets,
+  getTicket,
+  createTicket,
+  updateTicket,
+  deleteTicket,
   addActivity,
   getUsers,
   getUser,
@@ -20,6 +25,9 @@ import {
   Task,
   CreateTaskRequest,
   UpdateTaskRequest,
+  CreateTicketRequest,
+  UpdateTicketRequest,
+  TicketType,
   CreateUserRequest,
   UpdateUserRequest,
   extractDomain,
@@ -52,6 +60,18 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
 };
 
+const VALID_TICKET_TYPES: TicketType[] = ['bug', 'feature'];
+
+function isValidTicketType(
+  value: string | TicketType | undefined
+): value is TicketType {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  return VALID_TICKET_TYPES.includes(value as TicketType);
+}
+
 // Helper to create response
 function createResponse(statusCode: number, body: any): APIGatewayProxyResult {
   return {
@@ -74,6 +94,166 @@ export async function getTasksHandler(
   } catch (error) {
     console.error('Error getting tasks:', error);
     return createResponse(500, { error: 'Failed to get tasks' });
+  }
+}
+
+// GET /tickets - Get all tickets for user's domain
+export async function getTicketsHandler(
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const tickets = await getTickets(domain);
+
+    return createResponse(200, { tickets });
+  } catch (error) {
+    console.error('Error getting tickets:', error);
+    return createResponse(500, { error: 'Failed to get tickets' });
+  }
+}
+
+// GET /tickets/{id} - Get a specific ticket
+export async function getTicketHandler(
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const ticketId = event.pathParameters?.id;
+
+    if (!ticketId) {
+      return createResponse(400, { error: 'Ticket ID is required' });
+    }
+
+    const ticket = await getTicket(domain, ticketId);
+
+    if (!ticket) {
+      return createResponse(404, { error: 'Ticket not found' });
+    }
+
+    return createResponse(200, { ticket });
+  } catch (error) {
+    console.error('Error getting ticket:', error);
+    return createResponse(500, { error: 'Failed to get ticket' });
+  }
+}
+
+// POST /tickets - Create a new ticket
+export async function createTicketHandler(
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain, email } = getUserFromEvent(event);
+    const body: CreateTicketRequest = JSON.parse(event.body || '{}');
+
+    if (!body.title) {
+      return createResponse(400, { error: 'Title is required' });
+    }
+
+    const normalizedType =
+      typeof body.type === 'string'
+        ? (body.type.toLowerCase() as TicketType)
+        : undefined;
+
+    if (!isValidTicketType(normalizedType)) {
+      return createResponse(400, {
+        error: 'Ticket type must be either bug or feature',
+      });
+    }
+
+    const payload = { ...body, type: normalizedType };
+    console.log('Creating ticket with payload', {
+      domain,
+      user: email,
+      payload,
+    });
+
+    const ticket = await createTicket(domain, payload, email);
+
+    return createResponse(201, { ticket });
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    let message = 'Failed to create ticket';
+
+    if (error instanceof Error) {
+      message = `${error.name}: ${error.message}`;
+    } else if (typeof error === 'string') {
+      message = error;
+    } else if (error && typeof error === 'object') {
+      try {
+        message = JSON.stringify(error);
+      } catch {
+        message = 'Failed to create ticket';
+      }
+    }
+
+    return createResponse(500, { error: message });
+  }
+}
+
+// PUT /tickets/{id} - Update a ticket
+export async function updateTicketHandler(
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain, email } = getUserFromEvent(event);
+    const ticketId = event.pathParameters?.id;
+    const body: UpdateTicketRequest = JSON.parse(event.body || '{}');
+
+    if (!ticketId) {
+      return createResponse(400, { error: 'Ticket ID is required' });
+    }
+
+    const normalizedType =
+      typeof body.type === 'string'
+        ? (body.type.toLowerCase() as TicketType)
+        : body.type;
+
+    if (normalizedType !== undefined && !isValidTicketType(normalizedType)) {
+      return createResponse(400, {
+        error: 'Ticket type must be either bug or feature',
+      });
+    }
+
+    const ticket = await updateTicket(
+      domain,
+      ticketId,
+      {
+        ...body,
+        ...(normalizedType !== undefined ? { type: normalizedType } : {}),
+      },
+      email
+    );
+
+    return createResponse(200, { ticket });
+  } catch (error) {
+    console.error('Error updating ticket:', error);
+    return createResponse(500, { error: 'Failed to update ticket' });
+  }
+}
+
+// DELETE /tickets/{id} - Delete a ticket
+export async function deleteTicketHandler(
+  event: APIGatewayProxyEvent,
+  context: Context
+): Promise<APIGatewayProxyResult> {
+  try {
+    const { domain } = getUserFromEvent(event);
+    const ticketId = event.pathParameters?.id;
+
+    if (!ticketId) {
+      return createResponse(400, { error: 'Ticket ID is required' });
+    }
+
+    await deleteTicket(domain, ticketId);
+
+    return createResponse(200, { success: true });
+  } catch (error) {
+    console.error('Error deleting ticket:', error);
+    return createResponse(500, { error: 'Failed to delete ticket' });
   }
 }
 

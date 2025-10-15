@@ -12,6 +12,7 @@ import BacklogPage from './pages/Backlog';
 import LoginPage from './pages/Login';
 import DemoPage from './pages/Demo';
 import UsersPage from './pages/Users';
+import TicketsPage from './pages/Tickets';
 
 const router = createBrowserRouter([
   {
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
       {
         path: '/sprint',
         element: <SprintPage />,
+      },
+      {
+        path: '/tickets',
+        element: <TicketsPage />,
       },
       {
         path: '/backlog',

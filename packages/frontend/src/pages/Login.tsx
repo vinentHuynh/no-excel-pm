@@ -148,7 +148,6 @@ export default function LoginPage() {
 
     setError(null);
     setEmailTouched(false);
-    setApprovedEmail(normalizedEmail);
     setStatusMessage(null);
     setAuthErrorMessage(null);
     setSignUpCode('');
@@ -156,11 +155,17 @@ export default function LoginPage() {
     setResetPasswordValue('');
     setResetPasswordConfirm('');
     if (mode === 'signIn') {
+      if (pendingAction === 'checkAccountStatus') {
+        return;
+      }
+
       setSignInPassword('');
       setPendingAction('checkAccountStatus');
+      setApprovedEmail(null);
+
       try {
         const accountStatus = await checkAccountStatus(normalizedEmail);
-        setPendingAction(null);
+        setApprovedEmail(normalizedEmail);
 
         if (accountStatus === 'not-found') {
           setStatusMessage(
@@ -189,16 +194,18 @@ export default function LoginPage() {
           changeStep('confirmSignUp');
           return;
         }
+
+        changeStep('signIn');
       } catch (checkError) {
         console.error('Failed to check account status', checkError);
-        setPendingAction(null);
         setApprovedEmail(null);
         setError('We ran into a problem checking your account. Try again.');
         return;
+      } finally {
+        setPendingAction(null);
       }
-
-      changeStep('signIn');
     } else {
+      setApprovedEmail(normalizedEmail);
       setSignUpPassword('');
       setSignUpPasswordConfirm('');
       changeStep('signUp');
@@ -746,6 +753,7 @@ export default function LoginPage() {
                 emailTouched && !email ? 'Enter your business email.' : error
               }
               onKeyDown={submitOnEnter(() => handleEmailSubmit('signIn'))}
+              disabled={isActionLoading('checkAccountStatus')}
               required
             />
 
@@ -755,8 +763,19 @@ export default function LoginPage() {
               loading={isActionLoading('checkAccountStatus')}
               disabled={isActionLoading('checkAccountStatus')}
             >
-              Continue
+              {isActionLoading('checkAccountStatus')
+                ? 'Checking account…'
+                : 'Continue'}
             </Button>
+
+            {isActionLoading('checkAccountStatus') ? (
+              <Group justify='center' gap='xs'>
+                <Loader size='sm' />
+                <Text size='sm' c='dimmed'>
+                  Checking your workspace access…
+                </Text>
+              </Group>
+            ) : null}
 
             <Stack gap={2}>
               <Button variant='outline' size='md' component={Link} to='/demo'>

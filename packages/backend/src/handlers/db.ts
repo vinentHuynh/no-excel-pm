@@ -9,17 +9,31 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import {
   Task,
+  Ticket,
+  TicketType,
   Activity,
   UserProfile,
   buildTaskPK,
+  buildTicketPK,
   buildUserPK,
   buildMetaSK,
   buildDomainGSI1PK,
 } from '@paroview/shared';
 
 const client = new DynamoDBClient({});
-const docClient = DynamoDBDocumentClient.from(client);
+const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: {
+    removeUndefinedValues: true,
+  },
+});
 const TABLE_NAME = process.env.TABLE_NAME!;
+
+function normalizeTicket(ticket: Ticket & { type?: TicketType }): Ticket {
+  return {
+    ...ticket,
+    type: ticket.type ?? 'feature',
+  };
+}
 
 export async function getTasks(domain: string): Promise<Task[]> {
   const params = {
@@ -33,6 +47,22 @@ export async function getTasks(domain: string): Promise<Task[]> {
 
   const result = await docClient.send(new QueryCommand(params));
   return (result.Items || []).map((item) => item.data as Task);
+}
+
+export async function getTickets(domain: string): Promise<Ticket[]> {
+  const params = {
+    TableName: TABLE_NAME,
+    IndexName: 'GSI1',
+    KeyConditionExpression: 'GSI1PK = :gsi1pk',
+    ExpressionAttributeValues: {
+      ':gsi1pk': buildDomainGSI1PK(domain, 'TICKET'),
+    },
+  };
+
+  const result = await docClient.send(new QueryCommand(params));
+  return (result.Items || []).map((item) =>
+    normalizeTicket(item.data as Ticket & { type?: TicketType })
+  );
 }
 
 export async function getTask(
@@ -49,6 +79,26 @@ export async function getTask(
 
   const result = await docClient.send(new GetCommand(params));
   return result.Item ? (result.Item.data as Task) : null;
+}
+
+export async function getTicket(
+  domain: string,
+  ticketId: string
+): Promise<Ticket | null> {
+  const params = {
+    TableName: TABLE_NAME,
+    Key: {
+      PK: buildTicketPK(domain, ticketId),
+      SK: buildMetaSK(),
+    },
+  };
+
+  const result = await docClient.send(new GetCommand(params));
+  if (!result.Item) {
+    return null;
+  }
+
+  return normalizeTicket(result.Item.data as Ticket & { type?: TicketType });
 }
 
 export async function createTask(
@@ -105,6 +155,51 @@ export async function createTask(
   );
 
   return task;
+}
+
+export async function createTicket(
+  domain: string,
+  ticketData: Partial<Ticket>,
+  createdBy: string
+): Promise<Ticket> {
+  const ticketId = `ticket-${Date.now()}-${Math.random()
+    .toString(36)
+    .substr(2, 9)}`;
+  const now = new Date().toISOString();
+
+  const ticket: Ticket = {
+    id: ticketId,
+    title: ticketData.title || '',
+    description: ticketData.description || '',
+    status: ticketData.status || 'new',
+    type: (ticketData.type as TicketType) || 'feature',
+    assignedTo: ticketData.assignedTo,
+    domain,
+    createdAt: now,
+    updatedAt: now,
+    createdBy,
+  };
+
+  const item = {
+    PK: buildTicketPK(domain, ticketId),
+    SK: buildMetaSK(),
+    GSI1PK: buildDomainGSI1PK(domain, 'TICKET'),
+    GSI1SK: now,
+    entityType: 'TICKET',
+    domain,
+    data: ticket,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await docClient.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: item,
+    })
+  );
+
+  return ticket;
 }
 
 export async function updateTask(
@@ -228,6 +323,53 @@ export async function updateTask(
   return updatedTask;
 }
 
+export async function updateTicket(
+  domain: string,
+  ticketId: string,
+  updates: Partial<Ticket>,
+  updatedBy: string
+): Promise<Ticket> {
+  const existingTicket = await getTicket(domain, ticketId);
+  if (!existingTicket) {
+    throw new Error('Ticket not found');
+  }
+
+  const now = new Date().toISOString();
+
+  const updatedTicket: Ticket = {
+    ...existingTicket,
+    ...updates,
+    id: ticketId,
+    domain,
+    type:
+      (updates.type as TicketType | undefined) ??
+      existingTicket.type ??
+      'feature',
+    updatedAt: now,
+  };
+
+  const item = {
+    PK: buildTicketPK(domain, ticketId),
+    SK: buildMetaSK(),
+    GSI1PK: buildDomainGSI1PK(domain, 'TICKET'),
+    GSI1SK: existingTicket.createdAt,
+    entityType: 'TICKET',
+    domain,
+    data: updatedTicket,
+    createdAt: existingTicket.createdAt,
+    updatedAt: now,
+  };
+
+  await docClient.send(
+    new PutCommand({
+      TableName: TABLE_NAME,
+      Item: item,
+    })
+  );
+
+  return updatedTicket;
+}
+
 export async function deleteTask(
   domain: string,
   taskId: string
@@ -237,6 +379,21 @@ export async function deleteTask(
       TableName: TABLE_NAME,
       Key: {
         PK: buildTaskPK(domain, taskId),
+        SK: buildMetaSK(),
+      },
+    })
+  );
+}
+
+export async function deleteTicket(
+  domain: string,
+  ticketId: string
+): Promise<void> {
+  await docClient.send(
+    new DeleteCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        PK: buildTicketPK(domain, ticketId),
         SK: buildMetaSK(),
       },
     })

@@ -3,6 +3,10 @@
 
 export type TaskStatus = 'backlog' | 'in-progress' | 'completed';
 
+export type TicketStatus = 'new' | 'in-progress' | 'done';
+
+export type TicketType = 'bug' | 'feature';
+
 export type ActivityType =
   | 'comment'
   | 'status_change'
@@ -39,6 +43,19 @@ export interface Task {
   createdBy: string;
 }
 
+export interface Ticket {
+  id: string;
+  title: string;
+  description: string;
+  status: TicketStatus;
+  type: TicketType;
+  assignedTo?: string;
+  domain: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+}
+
 export interface Sprint {
   id: string;
   name: string;
@@ -70,9 +87,9 @@ export interface DynamoDBItem {
   SK: string; // Sort Key: "META" for main item, or "RELATION#..." for relationships
   GSI1PK?: string; // Global Secondary Index 1 PK for queries
   GSI1SK?: string; // Global Secondary Index 1 SK
-  entityType: 'TASK' | 'SPRINT' | 'USER' | 'ACTIVITY';
+  entityType: 'TASK' | 'TICKET' | 'SPRINT' | 'USER' | 'ACTIVITY';
   domain: string;
-  data: Task | Sprint | UserProfile | Activity;
+  data: Task | Ticket | Sprint | UserProfile | Activity;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +111,22 @@ export interface UpdateTaskRequest {
   hoursExpected?: number;
   assignedTo?: string;
   linkedTasks?: string[];
+}
+
+export interface CreateTicketRequest {
+  title: string;
+  description?: string;
+  status?: TicketStatus;
+  type: TicketType;
+  assignedTo?: string;
+}
+
+export interface UpdateTicketRequest {
+  title?: string;
+  description?: string;
+  status?: TicketStatus;
+  type?: TicketType;
+  assignedTo?: string;
 }
 
 export interface AddCommentRequest {
@@ -120,6 +153,18 @@ export interface UpdateTaskResponse {
 
 export interface DeleteTaskResponse {
   success: boolean;
+}
+
+export interface GetTicketsResponse {
+  tickets: Ticket[];
+}
+
+export interface CreateTicketResponse {
+  ticket: Ticket;
+}
+
+export interface UpdateTicketResponse {
+  ticket: Ticket;
 }
 
 // User API Request/Response types
@@ -153,6 +198,10 @@ export interface DeleteUserResponse {
 // Helper function to build DynamoDB keys
 export function buildTaskPK(domain: string, taskId: string): string {
   return `DOMAIN#${domain}#TASK#${taskId}`;
+}
+
+export function buildTicketPK(domain: string, ticketId: string): string {
+  return `DOMAIN#${domain}#TICKET#${ticketId}`;
 }
 
 export function buildSprintPK(domain: string, sprintId: string): string {

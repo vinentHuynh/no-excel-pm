@@ -27,6 +27,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconUsers,
+  IconTicket,
 } from '@tabler/icons-react';
 
 export function Navigation() {
@@ -54,10 +55,11 @@ export function Navigation() {
       //   icon: IconLayoutDashboard,
       // },
       {
-        label: 'Sprint',
+        label: 'Projects',
         to: '/sprint',
         icon: IconBrandStackshare,
       },
+
       // {
       //   label: 'Backlogs',
       //   to: '/backlog',
@@ -67,6 +69,11 @@ export function Navigation() {
         label: 'Users',
         to: '/users',
         icon: IconUsers,
+      },
+      {
+        label: 'Support Tickets',
+        to: '/tickets',
+        icon: IconTicket,
       },
     ],
     []

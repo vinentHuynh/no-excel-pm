@@ -171,6 +171,96 @@ export class ApiStack extends cdk.Stack {
       }
     );
 
+    const getTicketsLambda = new nodejs.NodejsFunction(
+      this,
+      'GetTicketsFunction',
+      {
+        entry: 'src/handlers/tasks.ts',
+        handler: 'getTicketsHandler',
+        runtime: lambda.Runtime.NODEJS_20_X,
+        environment: lambdaEnvironment,
+        role: lambdaRole,
+        timeout: cdk.Duration.seconds(30),
+        bundling: {
+          minify: false,
+          sourceMap: true,
+          externalModules: ['aws-sdk'],
+        },
+      }
+    );
+
+    const getTicketLambda = new nodejs.NodejsFunction(
+      this,
+      'GetTicketFunction',
+      {
+        entry: 'src/handlers/tasks.ts',
+        handler: 'getTicketHandler',
+        runtime: lambda.Runtime.NODEJS_20_X,
+        environment: lambdaEnvironment,
+        role: lambdaRole,
+        timeout: cdk.Duration.seconds(30),
+        bundling: {
+          minify: false,
+          sourceMap: true,
+          externalModules: ['aws-sdk'],
+        },
+      }
+    );
+
+    const createTicketLambda = new nodejs.NodejsFunction(
+      this,
+      'CreateTicketFunction',
+      {
+        entry: 'src/handlers/tasks.ts',
+        handler: 'createTicketHandler',
+        runtime: lambda.Runtime.NODEJS_20_X,
+        environment: lambdaEnvironment,
+        role: lambdaRole,
+        timeout: cdk.Duration.seconds(30),
+        bundling: {
+          minify: false,
+          sourceMap: true,
+          externalModules: ['aws-sdk'],
+        },
+      }
+    );
+
+    const updateTicketLambda = new nodejs.NodejsFunction(
+      this,
+      'UpdateTicketFunction',
+      {
+        entry: 'src/handlers/tasks.ts',
+        handler: 'updateTicketHandler',
+        runtime: lambda.Runtime.NODEJS_20_X,
+        environment: lambdaEnvironment,
+        role: lambdaRole,
+        timeout: cdk.Duration.seconds(30),
+        bundling: {
+          minify: false,
+          sourceMap: true,
+          externalModules: ['aws-sdk'],
+        },
+      }
+    );
+
+    const deleteTicketLambda = new nodejs.NodejsFunction(
+      this,
+      'DeleteTicketFunction',
+      {
+        entry: 'src/handlers/tasks.ts',
+        handler: 'deleteTicketHandler',
+        runtime: lambda.Runtime.NODEJS_20_X,
+        environment: lambdaEnvironment,
+        role: lambdaRole,
+        timeout: cdk.Duration.seconds(30),
+        bundling: {
+          minify: false,
+          sourceMap: true,
+          externalModules: ['aws-sdk'],
+        },
+      }
+    );
+
     // Create API Gateway
     this.api = new apigateway.RestApi(this, 'ParoviewApi', {
       restApiName: 'Paroview API',
@@ -205,6 +295,8 @@ export class ApiStack extends cdk.Stack {
     const comments = task.addResource('comments');
     const link = task.addResource('link');
     const unlinkResource = link.addResource('{linkedTaskId}');
+    const tickets = this.api.root.addResource('tickets');
+    const ticket = tickets.addResource('{id}');
 
     // GET /tasks
     tasks.addMethod('GET', new apigateway.LambdaIntegration(getTasksLambda), {
@@ -264,6 +356,48 @@ export class ApiStack extends cdk.Stack {
     unlinkResource.addMethod(
       'DELETE',
       new apigateway.LambdaIntegration(unlinkTaskLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+
+    // Tickets endpoints
+    tickets.addMethod(
+      'GET',
+      new apigateway.LambdaIntegration(getTicketsLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+
+    tickets.addMethod(
+      'POST',
+      new apigateway.LambdaIntegration(createTicketLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+
+    ticket.addMethod('GET', new apigateway.LambdaIntegration(getTicketLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
+
+    ticket.addMethod(
+      'PUT',
+      new apigateway.LambdaIntegration(updateTicketLambda),
+      {
+        authorizer,
+        authorizationType: apigateway.AuthorizationType.COGNITO,
+      }
+    );
+
+    ticket.addMethod(
+      'DELETE',
+      new apigateway.LambdaIntegration(deleteTicketLambda),
       {
         authorizer,
         authorizationType: apigateway.AuthorizationType.COGNITO,
