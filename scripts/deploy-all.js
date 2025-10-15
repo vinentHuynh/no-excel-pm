@@ -792,8 +792,12 @@ async function main() {
   }
 
   console.log('\n✅ Deployment complete.');
-  console.log('   • Amplify will publish the latest frontend build automatically');
-  console.log('   • Confirm Amplify custom domains and certificates in the console if configured');
+  console.log(
+    '   • Amplify will publish the latest frontend build automatically'
+  );
+  console.log(
+    '   • Confirm Amplify custom domains and certificates in the console if configured'
+  );
 }
 
 main().catch((error) => {
