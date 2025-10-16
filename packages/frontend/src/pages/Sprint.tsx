@@ -23,10 +23,7 @@ import {
   ActionIcon,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import {
-  IconChevronRight,
-  IconQuestionMark,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconQuestionMark } from '@tabler/icons-react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { apiClient } from '../api/client';
 import { useDisclosure } from '@mantine/hooks';
@@ -104,10 +101,7 @@ interface SortableTaskCardProps {
   onClick: (task: Task) => void;
 }
 
-function SortableTaskCard({
-  task,
-  onClick,
-}: SortableTaskCardProps) {
+function SortableTaskCard({ task, onClick }: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -251,13 +245,7 @@ interface ColumnProps {
   color: string;
 }
 
-function Column({
-  title,
-  status,
-  tasks,
-  onTaskClick,
-  color,
-}: ColumnProps) {
+function Column({ title, status, tasks, onTaskClick, color }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: status,
   });
