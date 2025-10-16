@@ -21,12 +21,10 @@ import {
   Loader,
   Center,
   ActionIcon,
-  Progress,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import {
   IconChevronRight,
-  IconInfoSquareRounded,
   IconQuestionMark,
 } from '@tabler/icons-react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
@@ -104,13 +102,11 @@ const getUserColor = (username: string): string => {
 interface SortableTaskCardProps {
   task: Task;
   onClick: (task: Task) => void;
-  onUpdateTask: (task: Task) => void;
 }
 
 function SortableTaskCard({
   task,
   onClick,
-  onUpdateTask,
 }: SortableTaskCardProps) {
   const {
     attributes,
@@ -252,7 +248,6 @@ interface ColumnProps {
   status: TaskStatus;
   tasks: Task[];
   onTaskClick: (task: Task) => void;
-  onUpdateTask: (task: Task) => void;
   color: string;
 }
 
@@ -261,7 +256,6 @@ function Column({
   status,
   tasks,
   onTaskClick,
-  onUpdateTask,
   color,
 }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -314,7 +308,6 @@ function Column({
                     key={task.id}
                     task={task}
                     onClick={onTaskClick}
-                    onUpdateTask={onUpdateTask}
                   />
                 ))
               )}
@@ -424,7 +417,7 @@ export default function SprintPage({
   const [colorKeyOpened, { open: openColorKey, close: closeColorKey }] =
     useDisclosure(false);
   const [newComment, setNewComment] = useState('');
-  const [selectedLinkTask, setSelectedLinkTask] = useState<string>('');
+  // const [selectedLinkTask, setSelectedLinkTask] = useState<string>(''); // Kept for future linked tasks feature
 
   // Helper function to add activity
   const addActivity = (
@@ -749,70 +742,71 @@ export default function SprintPage({
     }
   };
 
-  const handleLinkTask = () => {
-    if (!selectedTask || !selectedLinkTask) return;
+  // Kept for future implementation of linked tasks feature
+  // const handleLinkTask = () => {
+  //   if (!selectedTask || !selectedLinkTask) return;
 
-    // Don't link task to itself
-    if (selectedTask.id === selectedLinkTask) return;
+  //   // Don't link task to itself
+  //   if (selectedTask.id === selectedLinkTask) return;
 
-    // Don't link if already linked
-    if (selectedTask.linkedTasks.includes(selectedLinkTask)) return;
+  //   // Don't link if already linked
+  //   if (selectedTask.linkedTasks.includes(selectedLinkTask)) return;
 
-    const updatedTask = {
-      ...selectedTask,
-      linkedTasks: [...selectedTask.linkedTasks, selectedLinkTask],
-    };
+  //   const updatedTask = {
+  //     ...selectedTask,
+  //     linkedTasks: [...selectedTask.linkedTasks, selectedLinkTask],
+  //   };
 
-    setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
-    setSelectedTask(updatedTask);
-    setEditedTask(updatedTask);
-    setSelectedLinkTask('');
+  //   setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
+  //   setSelectedTask(updatedTask);
+  //   setEditedTask(updatedTask);
+  //   setSelectedLinkTask('');
 
-    // Add activity
-    const linkedTask = tasks.find((t) => t.id === selectedLinkTask);
-    if (linkedTask) {
-      const taskWithActivity = addActivity(
-        updatedTask,
-        'assignment',
-        `Linked to task: ${linkedTask.title}`
-      );
-      setTasks(
-        tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
-      );
-      setSelectedTask(taskWithActivity);
-      setEditedTask(taskWithActivity);
-    }
-  };
+  //   // Add activity
+  //   const linkedTask = tasks.find((t) => t.id === selectedLinkTask);
+  //   if (linkedTask) {
+  //     const taskWithActivity = addActivity(
+  //       updatedTask,
+  //       'assignment',
+  //       `Linked to task: ${linkedTask.title}`
+  //     );
+  //     setTasks(
+  //       tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
+  //     );
+  //     setSelectedTask(taskWithActivity);
+  //     setEditedTask(taskWithActivity);
+  //   }
+  // };
 
-  const handleUnlinkTask = (taskIdToUnlink: string) => {
-    if (!selectedTask) return;
+  // const handleUnlinkTask = (taskIdToUnlink: string) => {
+  //   if (!selectedTask) return;
 
-    const updatedTask = {
-      ...selectedTask,
-      linkedTasks: selectedTask.linkedTasks.filter(
-        (id) => id !== taskIdToUnlink
-      ),
-    };
+  //   const updatedTask = {
+  //     ...selectedTask,
+  //     linkedTasks: selectedTask.linkedTasks.filter(
+  //       (id) => id !== taskIdToUnlink
+  //     ),
+  //   };
 
-    setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
-    setSelectedTask(updatedTask);
-    setEditedTask(updatedTask);
+  //   setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
+  //   setSelectedTask(updatedTask);
+  //   setEditedTask(updatedTask);
 
-    // Add activity
-    const unlinkedTask = tasks.find((t) => t.id === taskIdToUnlink);
-    if (unlinkedTask) {
-      const taskWithActivity = addActivity(
-        updatedTask,
-        'assignment',
-        `Unlinked from task: ${unlinkedTask.title}`
-      );
-      setTasks(
-        tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
-      );
-      setSelectedTask(taskWithActivity);
-      setEditedTask(taskWithActivity);
-    }
-  };
+  //   // Add activity
+  //   const unlinkedTask = tasks.find((t) => t.id === taskIdToUnlink);
+  //   if (unlinkedTask) {
+  //     const taskWithActivity = addActivity(
+  //       updatedTask,
+  //       'assignment',
+  //       `Unlinked from task: ${unlinkedTask.title}`
+  //     );
+  //     setTasks(
+  //       tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
+  //     );
+  //     setSelectedTask(taskWithActivity);
+  //     setEditedTask(taskWithActivity);
+  //   }
+  // };
 
   const handleAddComment = async () => {
     if (!selectedTask || !newComment.trim()) return;
@@ -956,7 +950,6 @@ export default function SprintPage({
             status='backlog'
             tasks={backlogTasks}
             onTaskClick={handleTaskClick}
-            onUpdateTask={handleUpdateTask}
             color='gray'
           />
           <Column
@@ -964,7 +957,6 @@ export default function SprintPage({
             status='in-progress'
             tasks={inProgressTasks}
             onTaskClick={handleTaskClick}
-            onUpdateTask={handleUpdateTask}
             color='blue'
           />
           <Column
@@ -972,7 +964,6 @@ export default function SprintPage({
             status='completed'
             tasks={completedTasks}
             onTaskClick={handleTaskClick}
-            onUpdateTask={handleUpdateTask}
             color='green'
           />
         </Flex>
