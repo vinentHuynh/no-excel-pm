@@ -318,7 +318,7 @@ export default function TicketsPage() {
           </Alert>
         ) : null}
 
-        <Paper withBorder p='md' radius='md'>
+        <Paper withBorder p='md' radius='md' style={{ maxWidth: '800px' }}>
           <Group justify='space-between' align='center'>
             <Group align='center' gap='sm'>
               <SegmentedControl
@@ -337,7 +337,7 @@ export default function TicketsPage() {
           </Group>
         </Paper>
 
-        <Stack gap='md'>
+        <Stack gap='md' style={{ maxWidth: '800px' }}>
           {filteredTickets.length === 0 ? (
             <Card withBorder radius='md' p='lg'>
               <Stack gap='xs' align='center'>
@@ -355,51 +355,42 @@ export default function TicketsPage() {
             filteredTickets.map((ticketItem) => (
               <Card key={ticketItem.id} withBorder radius='md' p='md'>
                 <Stack gap='sm'>
-                  <Group justify='space-between' align='flex-start'>
-                    <Stack gap={4}>
-                      <Text fw={600}>{ticketItem.title}</Text>
-                      {ticketItem.description ? (
-                        <Text size='sm' c='dimmed'>
-                          {ticketItem.description}
-                        </Text>
-                      ) : null}
-                      <Group gap='xs'>
-                        <Badge
-                          color={ticketItem.type === 'bug' ? 'red' : 'teal'}
-                          variant='light'
-                        >
-                          {ticketItem.type === 'bug' ? 'Bug' : 'Feature'}
-                        </Badge>
-                        <Badge color='indigo' variant='light'>
-                          {STATUS_LABELS[ticketItem.status]}
-                        </Badge>
-                        {ticketItem.assignedTo ? (
-                          <Badge color='cyan' variant='light'>
-                            {ticketItem.assignedTo}
-                          </Badge>
-                        ) : (
-                          <Badge color='gray' variant='light'>
-                            Unassigned
-                          </Badge>
-                        )}
-                      </Group>
-                    </Stack>
-                  </Group>
+                  <Stack gap={4}>
+                    <Text fw={600}>{ticketItem.title}</Text>
+                    {ticketItem.description ? (
+                      <Text size='sm' c='dimmed'>
+                        {ticketItem.description}
+                      </Text>
+                    ) : null}
+                  </Stack>
 
-                  <Group gap='xs'>
-                    {STATUS_ORDER.map((status) => (
-                      <Button
-                        key={status}
-                        size='xs'
-                        variant={
-                          ticketItem.status === status ? 'filled' : 'light'
+                  <Group gap='xs' align='center'>
+                    <Badge
+                      color={ticketItem.type === 'bug' ? 'red' : 'teal'}
+                      variant='light'
+                    >
+                      {ticketItem.type === 'bug' ? 'Bug' : 'Feature'}
+                    </Badge>
+                    {ticketItem.assignedTo && (
+                      <Badge color='cyan' variant='light'>
+                        {ticketItem.assignedTo}
+                      </Badge>
+                    )}
+                    <Select
+                      value={ticketItem.status}
+                      onChange={(value) => {
+                        if (value) {
+                          handleStatusUpdate(ticketItem, value as TicketStatus);
                         }
-                        onClick={() => handleStatusUpdate(ticketItem, status)}
-                        disabled={updatingTicketId === ticketItem.id}
-                      >
-                        {STATUS_LABELS[status]}
-                      </Button>
-                    ))}
+                      }}
+                      data={STATUS_ORDER.map((status) => ({
+                        value: status,
+                        label: STATUS_LABELS[status],
+                      }))}
+                      disabled={updatingTicketId === ticketItem.id}
+                      size='xs'
+                      style={{ width: '150px' }}
+                    />
                   </Group>
                 </Stack>
               </Card>

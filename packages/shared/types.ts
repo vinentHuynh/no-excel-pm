@@ -37,6 +37,8 @@ export interface Task {
   hoursExpected: number;
   assignedTo: string;
   linkedTasks: string[]; // Array of task IDs
+  dueDate?: string; // ISO date string for due date
+  startDate?: string; // ISO date string for when task was started
   domain: string; // Company/organization domain
   createdAt: string;
   updatedAt: string;
@@ -101,6 +103,7 @@ export interface CreateTaskRequest {
   status: TaskStatus;
   hoursExpected: number;
   assignedTo?: string;
+  dueDate?: string;
 }
 
 export interface UpdateTaskRequest {
@@ -111,6 +114,8 @@ export interface UpdateTaskRequest {
   hoursExpected?: number;
   assignedTo?: string;
   linkedTasks?: string[];
+  dueDate?: string;
+  startDate?: string;
 }
 
 export interface CreateTicketRequest {

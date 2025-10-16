@@ -129,6 +129,8 @@ export async function createTask(
     hoursExpected: taskData.hoursExpected || 0,
     assignedTo: taskData.assignedTo || '',
     linkedTasks: taskData.linkedTasks || [],
+    dueDate: taskData.dueDate,
+    startDate: taskData.startDate,
     domain,
     createdAt: now,
     updatedAt: now,
@@ -218,8 +220,13 @@ export async function updateTask(
   // Generate activities for changes
   const newActivities: Activity[] = [];
 
-  // Track status changes
+  // Track status changes and set startDate when moving to in-progress
   if (updates.status && updates.status !== existingTask.status) {
+    // Automatically set startDate when moving to in-progress for the first time
+    if (updates.status === 'in-progress' && !existingTask.startDate) {
+      updates.startDate = now;
+    }
+
     newActivities.push({
       id: `${taskId}-${Date.now()}-status`,
       type: 'status_change',

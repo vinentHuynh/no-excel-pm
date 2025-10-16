@@ -21,8 +21,14 @@ import {
   Loader,
   Center,
   ActionIcon,
+  Progress,
 } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { DatePickerInput } from '@mantine/dates';
+import {
+  IconChevronRight,
+  IconInfoSquareRounded,
+  IconQuestionMark,
+} from '@tabler/icons-react';
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { apiClient } from '../api/client';
 import { useDisclosure } from '@mantine/hooks';
@@ -83,16 +89,16 @@ function convertApiTask(apiTask: ApiTask): Task {
   };
 }
 
-// Helper function to get consistent color for each user
+// Helper function to get consistent color for each user, theme-aware
 const getUserColor = (username: string): string => {
   const colors: Record<string, string> = {
-    John: 'blue',
-    Sarah: 'pink',
-    Mike: 'green',
-    Emily: 'violet',
-    System: 'gray',
+    John: 'var(--user-color-john, #228be6)', // blue
+    Sarah: 'var(--user-color-sarah, #f783ac)', // pink
+    Mike: 'var(--user-color-mike, #40c057)', // green
+    Emily: 'var(--user-color-emily, #845ef7)', // violet
+    System: 'var(--user-color-system, #868e96)', // gray
   };
-  return colors[username] || 'cyan';
+  return colors[username] || 'var(--user-color-default, #22b8cf)'; // cyan
 };
 
 interface SortableTaskCardProps {
@@ -129,10 +135,40 @@ function SortableTaskCard({
     onClick(task);
   };
 
+  // Determine card color based on days left, using CSS variables for theme support
+  let cardColor = undefined;
+
+  // Check if task is completed first
+  if (task.status === 'completed') {
+    cardColor = 'var(--sprint-card-completed, #b2f2bb)';
+  } else if (task.dueDate) {
+    const now = new Date();
+    const dueDate = new Date(task.dueDate);
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysLeft = Math.floor(
+      (dueDate.setHours(0, 0, 0, 0) - now.setHours(0, 0, 0, 0)) / msPerDay
+    );
+    if (!task.startDate) {
+      cardColor = '';
+    } else if (daysLeft < 0) {
+      cardColor = 'var(--sprint-card-overdue, #f8b4b4)';
+    } else if (daysLeft <= 1) {
+      cardColor = 'var(--sprint-card-due-soon, #a5d8ff)';
+    } else if (daysLeft <= 7) {
+      cardColor = 'var(--sprint-card-due-week, #ffd8a8)';
+    } else if (daysLeft <= 28) {
+      cardColor = 'var(--sprint-card-due-month, #fff3bf)';
+    }
+  }
+
   return (
     <Card
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        backgroundColor: cardColor,
+        color: cardColor ? '#000000' : undefined,
+      }}
       shadow='sm'
       padding='sm'
       radius='md'
@@ -146,16 +182,23 @@ function SortableTaskCard({
             {/* Drag icon */}
             <Text
               size='lg'
-              c='dimmed'
               style={{
                 cursor: 'grab',
                 userSelect: 'none',
                 lineHeight: 1,
+                color: cardColor ? '#000000' : 'var(--color-text)',
               }}
             >
               ⋮⋮
             </Text>
-            <Text fw={500} size='sm' style={{ flex: 1 }}>
+            <Text
+              fw={550}
+              size='md'
+              style={{
+                flex: 1,
+                color: cardColor ? '#000000' : 'var(--color-text)',
+              }}
+            >
               {task.title}
             </Text>
           </Group>
@@ -164,17 +207,22 @@ function SortableTaskCard({
               <Badge
                 size='sm'
                 variant='light'
-                color={getUserColor(task.assignedTo)}
+                style={{
+                  backgroundColor: getUserColor(task.assignedTo),
+                  color: cardColor ? '#000000' : 'var(--color-text)',
+                }}
               >
                 {task.assignedTo}
               </Badge>
             )}
             <ActionIcon
               variant='subtle'
-              color='gray'
+              style={{
+                color: cardColor ? '#000000' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}
               size='sm'
               onClick={handleCardClick}
-              style={{ cursor: 'pointer' }}
             >
               <IconChevronRight size={16} />
             </ActionIcon>
@@ -184,76 +232,17 @@ function SortableTaskCard({
 
       {/* Clickable area */}
       <Box onClick={handleCardClick} style={{ cursor: 'pointer' }}>
-        {task.description && (
-          <Text size='xs' c='dimmed' lineClamp={2} mb='xs'>
-            {task.description}
+        {task.startDate && (
+          <Text size='xs' c={cardColor ? 'dark' : 'dimmed'}>
+            🚀 Started: {new Date(task.startDate).toLocaleDateString()}
+          </Text>
+        )}
+        {task.dueDate && (
+          <Text size='xs' c={cardColor ? 'dark' : 'dimmed'}>
+            📅 Due: {new Date(task.dueDate).toLocaleDateString()}
           </Text>
         )}
       </Box>
-
-      {/* Hours input section - not part of drag or click */}
-      <Stack gap={2} mt='xs'>
-        <Group gap={4} wrap='nowrap' align='center'>
-          <Text
-            size='10px'
-            c='dimmed'
-            style={{ minWidth: '60px', fontSize: '10px' }}
-          >
-            Actual hours:
-          </Text>
-          <NumberInput
-            size='xs'
-            placeholder='0'
-            value={task.hoursSpent || ''}
-            onChange={(value) => {
-              onUpdateTask({ ...task, hoursSpent: Number(value) || 0 });
-            }}
-            min={0}
-            step={0.5}
-            hideControls
-            styles={{
-              input: {
-                width: '35px',
-                textAlign: 'center',
-                fontSize: '11px',
-                padding: '2px 4px',
-                height: '22px',
-              },
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </Group>
-        <Group gap={4} wrap='nowrap' align='center'>
-          <Text
-            size='10px'
-            c='dimmed'
-            style={{ minWidth: '60px', fontSize: '10px' }}
-          >
-            Initial hours:
-          </Text>
-          <NumberInput
-            size='xs'
-            placeholder='0'
-            value={task.hoursExpected || ''}
-            onChange={(value) => {
-              onUpdateTask({ ...task, hoursExpected: Number(value) || 0 });
-            }}
-            min={0}
-            step={0.5}
-            hideControls
-            styles={{
-              input: {
-                width: '35px',
-                textAlign: 'center',
-                fontSize: '11px',
-                padding: '2px 4px',
-                height: '22px',
-              },
-            }}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </Group>
-      </Stack>
     </Card>
   );
 }
@@ -419,15 +408,21 @@ export default function SprintPage({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>('backlog');
-  const [newTaskHoursExpected, setNewTaskHoursExpected] = useState<number>(0);
   const [newTaskHoursSpent, setNewTaskHoursSpent] = useState<number>(0);
   const [newTaskAssignedTo, setNewTaskAssignedTo] = useState<string>('');
+  const [newTaskDueDate, setNewTaskDueDate] = useState<string>('');
   const [addingTask, setAddingTask] = useState(false);
 
   // Task details modal state
   const [detailsOpened, { open: openDetails, close: closeDetails }] =
     useDisclosure(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editedTask, setEditedTask] = useState<Task | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Color key modal state
+  const [colorKeyOpened, { open: openColorKey, close: closeColorKey }] =
+    useDisclosure(false);
   const [newComment, setNewComment] = useState('');
   const [selectedLinkTask, setSelectedLinkTask] = useState<string>('');
 
@@ -560,6 +555,8 @@ export default function SprintPage({
             // Update selected task if it's the one being dragged
             if (selectedTask?.id === updatedTaskFromApi.id) {
               setSelectedTask(updatedTaskFromApi);
+              setEditedTask(updatedTaskFromApi);
+              setHasUnsavedChanges(false);
             }
           } catch (error) {
             console.error('Failed to update task status:', error);
@@ -577,8 +574,14 @@ export default function SprintPage({
         setTasks((tasks) => {
           const updatedTasks = tasks.map((task) => {
             if (task.id === activeTaskId) {
+              // Set startDate when moving to in-progress for the first time
+              const updatedTaskData = { ...task, status: newStatus };
+              if (newStatus === 'in-progress' && !task.startDate) {
+                updatedTaskData.startDate = new Date().toISOString();
+              }
+
               const taskWithActivity = addActivity(
-                { ...task, status: newStatus },
+                updatedTaskData,
                 'status_change',
                 `Status changed from ${activeTask.status} to ${newStatus}`,
                 {
@@ -623,9 +626,10 @@ export default function SprintPage({
         title: newTaskTitle,
         description: newTaskDescription,
         status: newTaskStatus,
-        hoursExpected: newTaskHoursExpected,
+        hoursExpected: 0,
         hoursSpent: newTaskHoursSpent,
         assignedTo: newTaskAssignedTo,
+        dueDate: newTaskDueDate || undefined,
         linkedTasks: [],
         activities: [
           {
@@ -643,9 +647,9 @@ export default function SprintPage({
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskStatus('backlog');
-      setNewTaskHoursExpected(0);
       setNewTaskHoursSpent(0);
       setNewTaskAssignedTo('');
+      setNewTaskDueDate('');
       close();
       return;
     }
@@ -656,8 +660,9 @@ export default function SprintPage({
         title: newTaskTitle,
         description: newTaskDescription,
         status: newTaskStatus,
-        hoursExpected: newTaskHoursExpected,
+        hoursExpected: 0,
         assignedTo: newTaskAssignedTo,
+        dueDate: newTaskDueDate || undefined,
       });
 
       const newTask = convertApiTask(response.task);
@@ -666,9 +671,9 @@ export default function SprintPage({
       setNewTaskTitle('');
       setNewTaskDescription('');
       setNewTaskStatus('backlog');
-      setNewTaskHoursExpected(0);
       setNewTaskHoursSpent(0);
       setNewTaskAssignedTo('');
+      setNewTaskDueDate('');
       close();
     } catch (err) {
       console.error('Error creating task:', err);
@@ -680,6 +685,8 @@ export default function SprintPage({
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
+    setEditedTask(task);
+    setHasUnsavedChanges(false);
     openDetails();
   };
 
@@ -689,10 +696,21 @@ export default function SprintPage({
     if (!originalTask) return;
 
     if (demoMode) {
+      // Set startDate when moving to in-progress for the first time in demo mode
+      if (
+        updatedTask.status === 'in-progress' &&
+        !originalTask.startDate &&
+        !updatedTask.startDate
+      ) {
+        updatedTask.startDate = new Date().toISOString();
+      }
+
       setTasks((tasks) =>
         tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
       );
       setSelectedTask(updatedTask);
+      setEditedTask(updatedTask);
+      setHasUnsavedChanges(false);
       return;
     }
 
@@ -705,6 +723,7 @@ export default function SprintPage({
         assignedTo: updatedTask.assignedTo,
         hoursSpent: updatedTask.hoursSpent,
         hoursExpected: updatedTask.hoursExpected,
+        dueDate: updatedTask.dueDate,
       };
 
       // Call API to update task
@@ -722,6 +741,8 @@ export default function SprintPage({
         )
       );
       setSelectedTask(updatedTaskFromApi);
+      setEditedTask(updatedTaskFromApi);
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.error('Failed to update task:', error);
       alert('Failed to update task. Please try again.');
@@ -744,6 +765,7 @@ export default function SprintPage({
 
     setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
     setSelectedTask(updatedTask);
+    setEditedTask(updatedTask);
     setSelectedLinkTask('');
 
     // Add activity
@@ -758,6 +780,7 @@ export default function SprintPage({
         tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
       );
       setSelectedTask(taskWithActivity);
+      setEditedTask(taskWithActivity);
     }
   };
 
@@ -773,6 +796,7 @@ export default function SprintPage({
 
     setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)));
     setSelectedTask(updatedTask);
+    setEditedTask(updatedTask);
 
     // Add activity
     const unlinkedTask = tasks.find((t) => t.id === taskIdToUnlink);
@@ -786,6 +810,7 @@ export default function SprintPage({
         tasks.map((t) => (t.id === selectedTask.id ? taskWithActivity : t))
       );
       setSelectedTask(taskWithActivity);
+      setEditedTask(taskWithActivity);
     }
   };
 
@@ -810,6 +835,7 @@ export default function SprintPage({
         tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
       );
       setSelectedTask(updatedTask);
+      setEditedTask(updatedTask);
       setNewComment('');
       return;
     }
@@ -822,6 +848,7 @@ export default function SprintPage({
         tasks.map((task) => (task.id === updatedTask.id ? updatedTask : task))
       );
       setSelectedTask(updatedTask);
+      setEditedTask(updatedTask);
       setNewComment('');
     } catch (err) {
       console.error('Error adding comment:', err);
@@ -834,6 +861,8 @@ export default function SprintPage({
       setTasks(tasks.filter((task) => task.id !== id));
       if (selectedTask?.id === id) {
         setSelectedTask(null);
+        setEditedTask(null);
+        setHasUnsavedChanges(false);
       }
       return;
     }
@@ -846,6 +875,8 @@ export default function SprintPage({
     setTasks(tasks.filter((task) => task.id !== id));
     if (selectedTask?.id === id) {
       setSelectedTask(null);
+      setEditedTask(null);
+      setHasUnsavedChanges(false);
       closeDetails();
     }
 
@@ -900,7 +931,17 @@ export default function SprintPage({
     <Box p='md'>
       <Group justify='space-between' mb='xl'>
         <Title order={2}>Project Board</Title>
-        <Button onClick={() => openAddTaskModal('backlog')}>Add Task</Button>
+        <Group gap='xs'>
+          <ActionIcon
+            variant='default'
+            size='lg'
+            onClick={openColorKey}
+            title='Color Key'
+          >
+            <IconQuestionMark size={20} />
+          </ActionIcon>
+          <Button onClick={() => openAddTaskModal('backlog')}>Add Task</Button>
+        </Group>
       </Group>
 
       <DndContext
@@ -911,7 +952,7 @@ export default function SprintPage({
       >
         <Flex gap='md' wrap='wrap'>
           <Column
-            title='Backlog'
+            title='Not Started'
             status='backlog'
             tasks={backlogTasks}
             onTaskClick={handleTaskClick}
@@ -969,22 +1010,29 @@ export default function SprintPage({
             minRows={3}
           />
 
-          <Group grow>
-            <NumberInput
-              label='Hours Expected'
-              value={newTaskHoursExpected}
-              onChange={(value) => setNewTaskHoursExpected(Number(value) || 0)}
-              min={0}
-              step={0.5}
-            />
-            <NumberInput
-              label='Hours Spent'
-              value={newTaskHoursSpent}
-              onChange={(value) => setNewTaskHoursSpent(Number(value) || 0)}
-              min={0}
-              step={0.5}
-            />
-          </Group>
+          <NumberInput
+            label='Hours Spent'
+            value={newTaskHoursSpent}
+            onChange={(value) => setNewTaskHoursSpent(Number(value) || 0)}
+            min={0}
+            step={0.5}
+          />
+
+          <DatePickerInput
+            label='Due Date'
+            placeholder='Select due date'
+            value={newTaskDueDate ? new Date(newTaskDueDate) : null}
+            onChange={(value) => {
+              if (!value) {
+                setNewTaskDueDate('');
+              } else if (typeof value === 'string') {
+                setNewTaskDueDate(value);
+              }
+            }}
+            clearable
+            firstDayOfWeek={0}
+            valueFormat='MM/DD/YYYY'
+          />
 
           <Select
             label='Assigned To'
@@ -1000,7 +1048,7 @@ export default function SprintPage({
             value={newTaskStatus}
             onChange={(value) => setNewTaskStatus(value as TaskStatus)}
             data={[
-              { value: 'backlog', label: 'Backlog' },
+              { value: 'backlog', label: 'Not Started' },
               { value: 'in-progress', label: 'In Progress' },
               { value: 'completed', label: 'Completed' },
             ]}
@@ -1020,11 +1068,23 @@ export default function SprintPage({
       {/* Task Details Modal */}
       <Modal
         opened={detailsOpened}
-        onClose={closeDetails}
+        onClose={() => {
+          if (hasUnsavedChanges) {
+            const confirmClose = window.confirm(
+              'You have unsaved changes. Are you sure you want to close without saving?'
+            );
+            if (confirmClose) {
+              setHasUnsavedChanges(false);
+              closeDetails();
+            }
+          } else {
+            closeDetails();
+          }
+        }}
         title='Task Details'
         size='80%'
       >
-        {selectedTask && (
+        {selectedTask && editedTask && (
           <Stack gap='md'>
             <Grid gutter='md'>
               {/* Row 1: Task Details and Activity Log */}
@@ -1034,70 +1094,95 @@ export default function SprintPage({
                   {/* Task Title */}
                   <TextInput
                     label='Title'
-                    value={selectedTask.title}
-                    onChange={(e) =>
-                      handleUpdateTask({
-                        ...selectedTask,
+                    value={editedTask.title}
+                    onChange={(e) => {
+                      setEditedTask({
+                        ...editedTask,
                         title: e.currentTarget.value,
-                      })
-                    }
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
                   />
 
                   {/* Description */}
                   <Textarea
                     label='Description'
                     placeholder='Add task description'
-                    value={selectedTask.description}
-                    onChange={(e) =>
-                      handleUpdateTask({
-                        ...selectedTask,
+                    value={editedTask.description}
+                    onChange={(e) => {
+                      setEditedTask({
+                        ...editedTask,
                         description: e.currentTarget.value,
-                      })
-                    }
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
                     minRows={3}
                   />
 
-                  <Group grow>
-                    {/* Hours Spent */}
-                    <NumberInput
-                      label='Hours Spent'
-                      value={selectedTask.hoursSpent}
-                      onChange={(value) =>
-                        handleUpdateTask({
-                          ...selectedTask,
-                          hoursSpent: Number(value) || 0,
-                        })
-                      }
-                      min={0}
-                      step={0.5}
-                    />
+                  {/* Hours Spent */}
+                  <NumberInput
+                    label='Hours Spent'
+                    value={editedTask.hoursSpent}
+                    onChange={(value) => {
+                      setEditedTask({
+                        ...editedTask,
+                        hoursSpent: Number(value) || 0,
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
+                    min={0}
+                    step={0.5}
+                  />
 
-                    {/* Hours Expected */}
-                    <NumberInput
-                      label='Hours Expected'
-                      value={selectedTask.hoursExpected}
-                      onChange={(value) =>
-                        handleUpdateTask({
-                          ...selectedTask,
-                          hoursExpected: Number(value) || 0,
-                        })
+                  {/* Due Date */}
+                  <DatePickerInput
+                    label='Due Date'
+                    placeholder='Select due date'
+                    value={
+                      editedTask.dueDate
+                        ? new Date(editedTask.dueDate + 'T00:00:00')
+                        : null
+                    }
+                    onChange={(value) => {
+                      let isoDate: string | undefined = undefined;
+                      if (value) {
+                        if (typeof value === 'string') {
+                          isoDate = value;
+                        } else {
+                          // value is a Date object - format as YYYY-MM-DD in local time
+                          const date = value as Date;
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(
+                            2,
+                            '0'
+                          );
+                          const day = String(date.getDate()).padStart(2, '0');
+                          isoDate = `${year}-${month}-${day}`;
+                        }
                       }
-                      min={0}
-                      step={0.5}
-                    />
-                  </Group>
+                      setEditedTask({
+                        ...editedTask,
+                        dueDate: isoDate,
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
+                    clearable
+                    firstDayOfWeek={0}
+                    valueFormat='MM/DD/YYYY'
+                  />
 
                   {/* Assigned To */}
                   <Select
                     label='Assigned To'
                     placeholder='Select a team member'
-                    value={selectedTask.assignedTo}
-                    onChange={(value) =>
-                      handleUpdateTask({
-                        ...selectedTask,
+                    value={editedTask.assignedTo}
+                    onChange={(value) => {
+                      setEditedTask({
+                        ...editedTask,
                         assignedTo: value || '',
-                      })
-                    }
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
                     data={users}
                     searchable
                   />
@@ -1105,15 +1190,16 @@ export default function SprintPage({
                   {/* Status */}
                   <Select
                     label='Status'
-                    value={selectedTask.status}
-                    onChange={(value) =>
-                      handleUpdateTask({
-                        ...selectedTask,
+                    value={editedTask.status}
+                    onChange={(value) => {
+                      setEditedTask({
+                        ...editedTask,
                         status: value as TaskStatus,
-                      })
-                    }
+                      });
+                      setHasUnsavedChanges(true);
+                    }}
                     data={[
-                      { value: 'backlog', label: 'Backlog' },
+                      { value: 'backlog', label: 'Not Started' },
                       { value: 'in-progress', label: 'In Progress' },
                       { value: 'completed', label: 'Completed' },
                     ]}
@@ -1182,8 +1268,9 @@ export default function SprintPage({
                                       {new Date(
                                         activity.timestamp
                                       ).toLocaleString('en-US', {
-                                        month: 'short',
+                                        month: 'numeric',
                                         day: 'numeric',
+                                        year: 'numeric',
                                         hour: 'numeric',
                                         minute: '2-digit',
                                       })}
@@ -1245,8 +1332,9 @@ export default function SprintPage({
                                   {new Date(comment.timestamp).toLocaleString(
                                     'en-US',
                                     {
-                                      month: 'short',
+                                      month: 'numeric',
                                       day: 'numeric',
+                                      year: 'numeric',
                                       hour: 'numeric',
                                       minute: '2-digit',
                                     }
@@ -1278,120 +1366,152 @@ export default function SprintPage({
                     />
                     <Button onClick={handleAddComment}>Comment</Button>
                   </Group>
+
+                  {/* Action Buttons */}
                 </Stack>
               </Grid.Col>
-
-              {/* Row 2: Linked Tasks Section - Right Side */}
               <Grid.Col span={{ base: 12, md: 4 }}>
-                <Divider mb='md' />
-                <Stack gap='xs'>
-                  <Text fw={500}>Linked Tasks</Text>
-
-                  {/* Linked Tasks List */}
-                  <ScrollArea h={200}>
-                    <Stack gap='xs'>
-                      {selectedTask.linkedTasks.length === 0 ? (
-                        <Text c='dimmed' size='sm' ta='center'>
-                          No linked tasks
-                        </Text>
-                      ) : (
-                        selectedTask.linkedTasks.map((linkedTaskId) => {
-                          const linkedTask = tasks.find(
-                            (t) => t.id === linkedTaskId
-                          );
-                          if (!linkedTask) return null;
-
-                          return (
-                            <Paper key={linkedTask.id} p='xs' withBorder>
-                              <Group justify='space-between' wrap='nowrap'>
-                                <Box style={{ flex: 1, minWidth: 0 }}>
-                                  <Text size='sm' fw={500} truncate>
-                                    🔗 {linkedTask.title}
-                                  </Text>
-                                  <Group gap='xs' mt={4}>
-                                    <Badge
-                                      size='xs'
-                                      color={
-                                        linkedTask.status === 'completed'
-                                          ? 'green'
-                                          : linkedTask.status === 'in-progress'
-                                          ? 'blue'
-                                          : 'gray'
-                                      }
-                                    >
-                                      {linkedTask.status}
-                                    </Badge>
-                                    {linkedTask.assignedTo && (
-                                      <Text size='xs' c='dimmed'>
-                                        {linkedTask.assignedTo}
-                                      </Text>
-                                    )}
-                                  </Group>
-                                </Box>
-                                <Button
-                                  size='xs'
-                                  variant='subtle'
-                                  color='red'
-                                  onClick={() =>
-                                    handleUnlinkTask(linkedTask.id)
-                                  }
-                                >
-                                  Unlink
-                                </Button>
-                              </Group>
-                            </Paper>
-                          );
-                        })
-                      )}
-                    </Stack>
-                  </ScrollArea>
-
-                  {/* Link Task */}
-                  <Group gap='xs'>
-                    <Select
-                      placeholder='Select task to link...'
-                      value={selectedLinkTask}
-                      onChange={(value) => setSelectedLinkTask(value || '')}
-                      data={tasks
-                        .filter(
-                          (t) =>
-                            t.id !== selectedTask.id &&
-                            !selectedTask.linkedTasks.includes(t.id)
-                        )
-                        .map((t) => ({
-                          value: t.id,
-                          label: `${t.title} (${t.status})`,
-                        }))}
-                      style={{ flex: 1 }}
-                      searchable
-                    />
+                <Box
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '100%',
+                    minHeight: '300px',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <Group gap='xs' justify='flex-end'>
                     <Button
-                      onClick={handleLinkTask}
-                      disabled={!selectedLinkTask}
+                      variant='filled'
+                      color='red'
+                      size='sm'
+                      style={{ width: '155px' }}
+                      onClick={() => {
+                        if (selectedTask) {
+                          handleDeleteTask(selectedTask.id);
+                          closeDetails();
+                        }
+                      }}
                     >
-                      Link
+                      Delete Task
+                    </Button>
+                    <Button
+                      variant='filled'
+                      color='blue'
+                      size='sm'
+                      style={{ width: '155px' }}
+                      onClick={() => {
+                        if (editedTask) {
+                          handleUpdateTask(editedTask);
+                          setHasUnsavedChanges(false);
+                          closeDetails();
+                        }
+                      }}
+                      disabled={!hasUnsavedChanges}
+                    >
+                      Save Changes
                     </Button>
                   </Group>
-                </Stack>
+                </Box>
               </Grid.Col>
             </Grid>
-
-            <Group justify='flex-start' mt='md'>
-              <Button
-                variant='filled'
-                color='red'
-                onClick={() => {
-                  if (selectedTask) {
-                    handleDeleteTask(selectedTask.id);
-                    closeDetails();
-                  }
-                }}
-              >
-                Delete Task
-              </Button>
-            </Group>
           </Stack>
         )}
+      </Modal>
+
+      {/* Color Key Modal */}
+      <Modal
+        opened={colorKeyOpened}
+        onClose={closeColorKey}
+        title='Task Card Color Key'
+        size='md'
+      >
+        <Stack gap='md'>
+          <Text size='sm' c='dimmed'>
+            Task cards are colored based on their status and due date:
+          </Text>
+
+          <Paper
+            p='md'
+            style={{ backgroundColor: 'var(--sprint-card-completed, #b2f2bb)' }}
+          >
+            <Text fw={500} c='dark'>
+              Completed
+            </Text>
+            <Text size='sm' c='dark'>
+              Task is marked as completed
+            </Text>
+          </Paper>
+
+          <Paper
+            p='md'
+            style={{
+              backgroundColor: 'var(--sprint-card-notstarted, #dee2e6)',
+            }}
+          >
+            <Text fw={500} c='dark'>
+              Not Started
+            </Text>
+            <Text size='sm' c='dark'>
+              Task has no due date set
+            </Text>
+          </Paper>
+
+          <Paper
+            p='md'
+            style={{ backgroundColor: 'var(--sprint-card-overdue, #f8b4b4)' }}
+          >
+            <Text fw={500} c='dark'>
+              Overdue
+            </Text>
+            <Text size='sm' c='dark'>
+              Due date has passed
+            </Text>
+          </Paper>
+
+          <Paper
+            p='md'
+            style={{ backgroundColor: 'var(--sprint-card-due-soon, #a5d8ff)' }}
+          >
+            <Text fw={500} c='dark'>
+              Due Today or Tomorrow
+            </Text>
+            <Text size='sm' c='dark'>
+              Due within 2 days
+            </Text>
+          </Paper>
+
+          <Paper
+            p='md'
+            style={{ backgroundColor: 'var(--sprint-card-due-week, #ffd8a8)' }}
+          >
+            <Text fw={500} c='dark'>
+              Due This Week
+            </Text>
+            <Text size='sm' c='dark'>
+              Due within 7 days
+            </Text>
+          </Paper>
+
+          <Paper
+            p='md'
+            style={{ backgroundColor: 'var(--sprint-card-due-month, #fff3bf)' }}
+          >
+            <Text fw={500} c='dark'>
+              Due This Month
+            </Text>
+            <Text size='sm' c='dark'>
+              Due within 30 days
+            </Text>
+          </Paper>
+
+          <Paper p='md' withBorder>
+            <Text fw={500}>No Color</Text>
+            <Text size='sm' c='dimmed'>
+              Due date is more than 30 days away
+            </Text>
+          </Paper>
+        </Stack>
       </Modal>
     </Box>
   );

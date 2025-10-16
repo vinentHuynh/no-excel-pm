@@ -24,6 +24,22 @@
   --color-border: rgba(255, 255, 255, 0.12);
   --color-primary: #646cff;
   --color-primary-hover: #535bf2;
+
+  /* Sprint card colors (dark, more muted/darker) */
+  --sprint-card-notstarted: #181a1b;
+  --sprint-card-overdue: #3d2325;
+  --sprint-card-due-soon: #1a2636;
+  --sprint-card-due-week: #3a2f1a;
+  --sprint-card-due-month: #34341a;
+  --sprint-card-completed: #1a3a2a;
+
+  /* User colors (dark, more muted) */
+  --user-color-john: #1c3a5a;
+  --user-color-sarah: #6d3a4b;
+  --user-color-mike: #23422a;
+  --user-color-emily: #3d2a5a;
+  --user-color-system: #444950;
+  --user-color-default: #1a4950;
 }
 
 /* Light mode colors */
@@ -38,6 +54,22 @@
     --color-border: rgba(0, 0, 0, 0.12);
     --color-primary: #646cff;
     --color-primary-hover: #747bff;
+
+    /* Sprint card colors (light) */
+    --sprint-card-notstarted: #dee2e6;
+    --sprint-card-overdue: #f8b4b4;
+    --sprint-card-due-soon: #a5d8ff;
+    --sprint-card-due-week: #ffd8a8;
+    --sprint-card-due-month: #fff3bf;
+    --sprint-card-completed: #b2f2bb;
+
+    /* User colors (light) */
+    --user-color-john: #228be6;
+    --user-color-sarah: #f783ac;
+    --user-color-mike: #40c057;
+    --user-color-emily: #845ef7;
+    --user-color-system: #868e96;
+    --user-color-default: #22b8cf;
   }
 }
 
